@@ -1,13 +1,18 @@
 # Dependencies
 node_modules/
 
+# Build output
+dist/
+dist-ssr/
+
+# Vite / local cache
+.vite/
+*.local
+
 # Environment variables (keep .env.example committed)
 .env
 .env.local
 .env.*.local
-
-# Build output
-dist/
 
 # Logs
 logs/
@@ -21,4 +26,3 @@ yarn-error.log*
 Thumbs.db
 .idea/
 .vscode/
-node_modules/

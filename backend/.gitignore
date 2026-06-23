@@ -6,9 +6,6 @@ node_modules/
 .env.local
 .env.*.local
 
-# Build output
-dist/
-
 # Logs
 logs/
 *.log
@@ -16,9 +13,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Runtime / coverage
+coverage/
+*.pid
+*.seed
+*.pid.lock
+
 # OS / editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
-node_modules/
