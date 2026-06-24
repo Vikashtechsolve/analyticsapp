@@ -147,68 +147,6 @@ function FlameIcon({ className }) {
   );
 }
 
-function TodayRankCard({ row, rank, classroomSlug, leaderScore, index = 0 }) {
-  const theme = RANK_THEME[rank];
-  const today = row.todaySolved ?? 0;
-  const pct = leaderScore > 0 ? Math.round((today / leaderScore) * 100) : 100;
-  const isFirst = rank === 1;
-
-  return (
-    <Link
-      to={`/c/${classroomSlug}/student/${row.studentId}`}
-      className={`group relative flex flex-col rounded-xl border p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 opacity-0 animate-hof-rise ${
-        isFirst
-          ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white shadow-sm'
-          : 'border-slate-200 bg-white hover:border-emerald-200'
-      }`}
-      style={{ animationDelay: `${0.05 + index * 0.06}s` }}
-    >
-      <div className={`absolute inset-y-2 left-0 w-1 rounded-full bg-gradient-to-b ${theme.ring}`} />
-
-      <div className="flex items-center gap-2.5 pl-2">
-        <span
-          className={`shrink-0 text-sm font-black tabular-nums ${
-            isFirst ? 'text-amber-500' : rank === 2 ? 'text-slate-400' : 'text-orange-600'
-          }`}
-        >
-          #{rank}
-        </span>
-        <div className={`h-9 w-9 shrink-0 rounded-lg p-[2px] bg-gradient-to-br ${theme.ring}`}>
-          <div className="h-full w-full rounded-[6px] bg-white flex items-center justify-center text-[11px] font-bold text-slate-700">
-            {initials(row.displayName)}
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors">
-            {row.displayName}
-          </p>
-          <p className="text-[11px] text-slate-500 truncate">@{row.leetcodeUsername}</p>
-        </div>
-        {isFirst && (
-          <CrownIcon className="w-4 h-4 text-amber-500 shrink-0 opacity-80" />
-        )}
-      </div>
-
-      <div className="mt-2.5 flex items-end justify-between pl-2 gap-2">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Today</p>
-          <div className="flex items-center gap-1 mt-0.5">
-            <FlameIcon className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-            <p className="text-xl font-black text-emerald-600 tabular-nums leading-none">{today}</p>
-          </div>
-        </div>
-        <div className="text-right text-[10px] text-slate-500 leading-relaxed">
-          <p>{row.totalSolved} solved</p>
-          <p>{row.streak}d streak</p>
-          {!isFirst && leaderScore > 0 && (
-            <p className="text-emerald-600 font-semibold">{pct}% of leader</p>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 function TodayRunnerCard({ row, rank, classroomSlug, leaderScore, index = 0 }) {
   const today = row.todaySolved ?? 0;
 
@@ -431,6 +369,124 @@ function PodiumSpot({ row, rank, classroomSlug, sortBy, maxScore }) {
   );
 }
 
+function TodayPodiumSpot({ row, rank, classroomSlug, leaderToday, runnerUpToday }) {
+  const theme = RANK_THEME[rank];
+  const isFirst = rank === 1;
+  const today = row.todaySolved ?? 0;
+  const pct = leaderToday > 0 ? Math.round((today / leaderToday) * 100) : 100;
+  const gapToLeader = Math.max(leaderToday - today, 0);
+  const leadOverNext = runnerUpToday != null ? today - runnerUpToday : 0;
+
+  return (
+    <div
+      className={`flex flex-col items-stretch flex-1 min-w-0 max-w-[240px] opacity-0 animate-hof-rise ${
+        isFirst ? 'sm:-mt-2 z-10' : ''
+      }`}
+      style={{ animationDelay: theme.delay }}
+    >
+      <Link
+        to={`/c/${classroomSlug}/student/${row.studentId}`}
+        className={`group relative flex flex-col rounded-2xl border ${theme.cardBorder} ${theme.cardBg} ${theme.cardShadow} p-3 sm:p-4 mb-2 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+          theme.float ? 'sm:animate-hof-float' : ''
+        }`}
+      >
+        {isFirst && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+            <div className="relative">
+              <div className="absolute inset-0 bg-amber-400/30 blur-md rounded-full animate-hof-sparkle" />
+              <CrownIcon className="relative w-7 h-7 text-amber-500 drop-shadow-md" />
+            </div>
+          </div>
+        )}
+
+        {/* Avatar + medal */}
+        <div className="flex items-center gap-3">
+          <div className="relative shrink-0">
+            <div className={`rounded-xl p-[2px] bg-gradient-to-br ${theme.ring}`}>
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-[10px] bg-white flex items-center justify-center">
+                <span className="text-base sm:text-lg font-extrabold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  {initials(row.displayName)}
+                </span>
+              </div>
+            </div>
+            <div className="absolute -bottom-1 -right-1">
+              <MedalIcon type={theme.medal} className="w-5 h-6 drop-shadow" />
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-slate-900 text-sm sm:text-base leading-tight truncate group-hover:text-emerald-700 transition-colors">
+              {row.displayName}
+            </p>
+            <p className="text-xs text-slate-500 truncate mt-0.5">@{row.leetcodeUsername}</p>
+            {row.division?.name && (
+              <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100">
+                {row.division.name}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Hero metric: solved today */}
+        <div className="mt-3 rounded-xl bg-white/70 border border-slate-100 px-3 py-2.5">
+          <div className="flex items-end justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Solved today
+              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <FlameIcon className="w-4 h-4 text-orange-500 shrink-0" />
+                <span className="text-3xl sm:text-4xl font-black tabular-nums leading-none text-emerald-600">
+                  {today}
+                </span>
+              </div>
+            </div>
+            {isFirst ? (
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-100 border border-amber-200 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                Leader
+              </span>
+            ) : gapToLeader > 0 ? (
+              <span className="shrink-0 rounded-md bg-slate-100 border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-600 tabular-nums">
+                −{gapToLeader} to #1
+              </span>
+            ) : (
+              <span className="shrink-0 rounded-md bg-emerald-100 border border-emerald-200 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                Tied #1
+              </span>
+            )}
+          </div>
+
+          {/* Progress vs leader */}
+          <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-1000 ease-out"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          {isFirst && leadOverNext > 0 && (
+            <p className="mt-1.5 text-[10px] font-semibold text-emerald-600">
+              {leadOverNext} ahead of #2
+            </p>
+          )}
+        </div>
+
+        {/* Secondary stats */}
+        <div className="mt-2 flex gap-1.5">
+          <StatChip label="Solved" value={row.totalSolved} />
+          <StatChip
+            label="Streak"
+            value={`${row.streak}d`}
+            accent={row.streak >= 7 ? 'text-emerald-600' : ''}
+          />
+          <StatChip label="Weekly" value={row.weeklyActivity} />
+        </div>
+      </Link>
+
+      <PodiumPedestal rank={rank} theme={theme} isFirst={isFirst} delay={theme.pedestalDelay} />
+    </div>
+  );
+}
+
 function ChallengerCard({ row, rank, classroomSlug, sortBy, maxScore, index = 0 }) {
   const score = statValue(row, sortBy);
   const numericScore = typeof score === 'number' ? score : 0;
@@ -474,6 +530,28 @@ function ChallengerCard({ row, rank, classroomSlug, sortBy, maxScore, index = 0 
         </div>
       </div>
     </Link>
+  );
+}
+
+function PodiumStage({ count, children }) {
+  // Keep the podium and its floor centered and sized to the number of winners
+  // so 1–2 champions still read as a proper podium instead of stretching wide.
+  const maxWidth = count <= 1 ? 280 : count === 2 ? 540 : 780;
+
+  return (
+    <div className="relative pt-2 pb-1">
+      <div className="mx-auto w-full" style={{ maxWidth: `${maxWidth}px` }}>
+        <div className="flex items-end justify-center gap-2 sm:gap-3 lg:gap-5 relative z-10">
+          {children}
+        </div>
+        {/* Shared stage floor */}
+        <div className="relative mt-1 mx-2 sm:mx-4">
+          <div className="h-3 sm:h-4 rounded-b-xl bg-gradient-to-b from-slate-200 via-slate-100 to-slate-50 border border-t-0 border-slate-200 shadow-inner" />
+          <div className="absolute inset-x-[10%] -bottom-1 h-2 rounded-[100%] bg-slate-900/8 blur-sm" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -599,57 +677,31 @@ export default function TopPerformersPodium({
         </div>
 
         {isToday ? (
-          <>
-            {topN.slice(0, 3).length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {topN.slice(0, 3).map((row, i) => (
-                  <TodayRankCard
-                    key={row.studentId}
-                    row={row}
-                    rank={row.rank}
-                    classroomSlug={classroomSlug}
-                    leaderScore={leaderToday}
-                    index={i}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        ) : topN.length >= 3 ? (
-          <div className="relative pt-2 pb-1">
-            <div className="flex items-end justify-center gap-2 sm:gap-3 lg:gap-5 relative z-10">
-              {podiumOrder.map((row) => (
-                <PodiumSpot
-                  key={row.studentId}
-                  row={row}
-                  rank={row.rank}
-                  classroomSlug={classroomSlug}
-                  sortBy={sortBy}
-                  maxScore={maxScore}
-                />
-              ))}
-            </div>
-            {/* Shared stage floor */}
-            <div className="relative mt-1 mx-2 sm:mx-8">
-              <div className="h-3 sm:h-4 rounded-b-xl bg-gradient-to-b from-slate-200 via-slate-100 to-slate-50 border border-t-0 border-slate-200 shadow-inner" />
-              <div className="absolute inset-x-[10%] -bottom-1 h-2 rounded-[100%] bg-slate-900/8 blur-sm" />
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
-            </div>
-          </div>
+          <PodiumStage count={podiumOrder.length}>
+            {podiumOrder.map((row) => (
+              <TodayPodiumSpot
+                key={row.studentId}
+                row={row}
+                rank={row.rank}
+                classroomSlug={classroomSlug}
+                leaderToday={leaderToday}
+                runnerUpToday={topN[1] ? topN[1].todaySolved ?? 0 : null}
+              />
+            ))}
+          </PodiumStage>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-2">
-            {topN.map((row, i) => (
-              <ChallengerCard
+          <PodiumStage count={podiumOrder.length}>
+            {podiumOrder.map((row) => (
+              <PodiumSpot
                 key={row.studentId}
                 row={row}
                 rank={row.rank}
                 classroomSlug={classroomSlug}
                 sortBy={sortBy}
                 maxScore={maxScore}
-                index={i}
               />
             ))}
-          </div>
+          </PodiumStage>
         )}
 
         {runnersMid.length > 0 && (
