@@ -9,41 +9,47 @@ import AdminPortal from './pages/admin/AdminPortal';
 import OrgDashboard from './pages/admin/OrgDashboard';
 import ClassroomManage from './pages/admin/ClassroomManage';
 import ProtectedRoute from './components/ProtectedRoute';
+import Footer from './components/Footer';
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/c/:slug" element={<ClassroomDashboard />} />
-      <Route path="/c/:slug/join" element={<JoinClassroom />} />
-      <Route path="/c/:slug/student/:studentId" element={<StudentProfile />} />
-      <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin/register" element={<AdminRegister />} />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <AdminPortal />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/orgs/:orgId"
-        element={
-          <ProtectedRoute>
-            <OrgDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/classrooms/:id"
-        element={
-          <ProtectedRoute>
-            <ClassroomManage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <div className="flex min-h-screen flex-col">
+      <div className="flex-1">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/c/:slug" element={<ClassroomDashboard />} />
+          <Route path="/c/:slug/join" element={<JoinClassroom />} />
+          <Route path="/c/:slug/student/:studentId" element={<StudentProfile />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPortal />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/orgs/:orgId"
+            element={
+              <ProtectedRoute>
+                <OrgDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/classrooms/:id"
+            element={
+              <ProtectedRoute>
+                <ClassroomManage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+      <Footer />
+    </div>
   );
 }
