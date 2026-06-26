@@ -6,6 +6,7 @@ import TopPerformersPodium from '../../components/TopPerformersPodium';
 import DailyActivityChart from '../../components/DailyActivityChart';
 import TopicChart from '../../components/TopicChart';
 import DivisionComparison from '../../components/DivisionComparison';
+import InactiveStudents from '../../components/InactiveStudents';
 import DashboardToolbar from '../../components/dashboard/DashboardToolbar';
 import DashboardSection from '../../components/dashboard/DashboardSection';
 import DashboardSkeleton from '../../components/dashboard/DashboardSkeleton';
@@ -168,23 +169,7 @@ export default function ClassroomDashboard() {
           </div>
         </DashboardSection>
 
-        {analytics.inactiveStudents?.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-sm font-semibold text-amber-800">
-              Inactive 7+ days ({analytics.inactiveStudents.length})
-            </p>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {analytics.inactiveStudents.map((s) => (
-                <span
-                  key={s.studentId}
-                  className="text-xs bg-white border border-amber-200 px-2 py-1 rounded-lg text-slate-700"
-                >
-                  {s.displayName}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        <InactiveStudents students={analytics.inactiveStudents} />
       </main>
     </div>
   );

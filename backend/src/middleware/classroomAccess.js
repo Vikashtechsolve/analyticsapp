@@ -3,7 +3,7 @@ const { canAccessClassroom } = require('../services/authz.service');
 
 const loadClassroom = async (req, res, next) => {
   try {
-    const id = req.params.id || req.params.classroomId;
+    const id = req.params.classroomId || req.params.id;
     const classroom = await Classroom.findById(id);
     if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
     req.classroom = classroom;
