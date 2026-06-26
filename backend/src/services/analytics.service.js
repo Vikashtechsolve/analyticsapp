@@ -61,19 +61,32 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
+const SNAPSHOT_LIST_FIELDS =
+  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown acceptanceRate';
+
+const STUDENT_LIST_FIELDS =
+  'displayName leetcodeUsername divisionId latestSnapshotId status enrollmentNumber institute email mobile academicDepartment graduationYear';
+
+const attachSnapshots = async (students, select = SNAPSHOT_LIST_FIELDS) => {
+  const snapshotIds = students.map((s) => s.latestSnapshotId).filter(Boolean);
+  const snapshots = snapshotIds.length
+    ? await StudentSnapshot.find({ _id: { $in: snapshotIds } }).select(select).lean()
+    : [];
+  const snapById = new Map(snapshots.map((s) => [String(s._id), s]));
+  return students.map((s) => ({
+    ...s,
+    snapshot: s.latestSnapshotId ? snapById.get(String(s.latestSnapshotId)) || null : null,
+  }));
+};
+
 const getStudentsWithSnapshots = async (classroomId, divisionId = null) => {
   const filter = { classroomId, status: 'active' };
   if (divisionId) filter.divisionId = divisionId;
-  const students = await Student.find(filter).populate('divisionId', 'name slug').lean();
-  const withSnaps = await Promise.all(
-    students.map(async (s) => {
-      const snap = s.latestSnapshotId
-        ? await StudentSnapshot.findById(s.latestSnapshotId).lean()
-        : null;
-      return { ...s, snapshot: snap };
-    })
-  );
-  return withSnaps;
+  const students = await Student.find(filter)
+    .select(STUDENT_LIST_FIELDS)
+    .populate('divisionId', 'name slug')
+    .lean();
+  return attachSnapshots(students);
 };
 
 const RANK_METRICS = ['score', 'totalSolved', 'streak', 'weeklyActivity'];
@@ -176,8 +189,9 @@ const buildRankingPayload = (rankings, studentId, divisionId, viewRank = null) =
   };
 };
 
-const getClassroomAnalytics = async (classroomId, divisionId = null) => {
-  const allStudents = await getStudentsWithSnapshots(classroomId, null);
+const getClassroomAnalytics = async (classroomId, divisionId = null, options = {}) => {
+  const { includeStudents = false, allStudents: preloadedStudents = null } = options;
+  const allStudents = preloadedStudents || (await getStudentsWithSnapshots(classroomId, null));
   const rankings = buildStudentRankings(allStudents);
 
   const students = divisionId
@@ -230,7 +244,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null) => {
     return { ...row, ...ranking };
   });
 
-  return {
+  const payload = {
     summary: {
       totalStudents: students.length,
       totalStudentsOverall: allStudents.length,
@@ -248,7 +262,10 @@ const getClassroomAnalytics = async (classroomId, divisionId = null) => {
     dailyActivity: aggregateCalendar(validSnaps, 30),
     topics: aggregateTopics(validSnaps),
     inactiveStudents,
-    students: students.map((s) => ({
+  };
+
+  if (includeStudents) {
+    payload.students = students.map((s) => ({
       _id: s._id,
       displayName: s.displayName,
       leetcodeUsername: s.leetcodeUsername,
@@ -267,26 +284,49 @@ const getClassroomAnalytics = async (classroomId, divisionId = null) => {
             syncedAt: s.snapshot.syncedAt,
           }
         : null,
-    })),
-  };
+    }));
+  }
+
+  return payload;
 };
 
-const getDivisionComparison = async (classroomId) => {
-  const divisions = await Division.find({ classroomId }).sort('sortOrder');
-  const comparison = [];
-  for (const div of divisions) {
-    const analytics = await getClassroomAnalytics(classroomId, div._id);
-    comparison.push({
+const buildDivisionComparison = (allStudents, divisions) => {
+  const today = new Date().toISOString().slice(0, 10);
+  return divisions.map((div) => {
+    const divStudents = allStudents.filter(
+      (s) => String(s.divisionId?._id || s.divisionId) === String(div._id)
+    );
+    const validSnaps = divStudents
+      .map((s) => s.snapshot)
+      .filter((s) => s && !s.syncError);
+    const avgSolved =
+      validSnaps.length > 0
+        ? Math.round(validSnaps.reduce((sum, s) => sum + (s.totalSolved || 0), 0) / validSnaps.length)
+        : 0;
+    const avgStreak =
+      validSnaps.length > 0
+        ? Math.round(validSnaps.reduce((sum, s) => sum + (s.streak || 0), 0) / validSnaps.length)
+        : 0;
+    const activeToday = validSnaps.filter((s) => mapToObj(s.calendar)[today] > 0).length;
+
+    return {
       divisionId: div._id,
       name: div.name,
       slug: div.slug,
-      totalStudents: analytics.summary.totalStudents,
-      avgSolved: analytics.summary.avgSolved,
-      avgStreak: analytics.summary.avgStreak,
-      activeToday: analytics.summary.activeToday,
-    });
-  }
-  return comparison;
+      totalStudents: divStudents.length,
+      avgSolved,
+      avgStreak,
+      activeToday,
+    };
+  });
+};
+
+const getDivisionComparison = async (classroomId, allStudents = null) => {
+  const [divisions, students] = await Promise.all([
+    Division.find({ classroomId }).sort('sortOrder').lean(),
+    allStudents ? Promise.resolve(allStudents) : getStudentsWithSnapshots(classroomId, null),
+  ]);
+  return buildDivisionComparison(students, divisions);
 };
 
 const getClassroomTeacherDashboard = async (classroomId, divisionId = null) => {
@@ -356,8 +396,10 @@ module.exports = {
   getClassroomAnalytics,
   getClassroomTeacherDashboard,
   getDivisionComparison,
+  buildDivisionComparison,
   getStudentDetail,
   getStudentsWithSnapshots,
+  attachSnapshots,
   buildLeaderboard,
   buildStudentRankings,
   getStudentRank,

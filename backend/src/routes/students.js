@@ -6,6 +6,10 @@ const { loadClassroom, ensureClassroomAccess } = require('../middleware/classroo
 const { parseLeetCodeUsername, slugify } = require('../utils/slugify');
 const { syncStudent } = require('../services/sync.service');
 const { fetchUserData } = require('../services/leetcode.service');
+const { attachSnapshots } = require('../services/analytics.service');
+
+const STUDENT_ROSTER_FIELDS =
+  'displayName leetcodeUsername divisionId latestSnapshotId status enrollmentNumber institute email mobile academicDepartment graduationYear source createdAt updatedAt';
 
 const router = express.Router();
 router.use(auth);
@@ -17,18 +21,14 @@ router.get('/:classroomId', ...ensureClassroomOwner, async (req, res) => {
   if (req.query.status) filter.status = req.query.status;
   if (req.query.divisionId) filter.divisionId = req.query.divisionId;
   const students = await Student.find(filter)
+    .select(STUDENT_ROSTER_FIELDS)
     .populate('divisionId', 'name slug')
     .sort('-createdAt')
     .lean();
 
-  const enriched = await Promise.all(
-    students.map(async (s) => {
-      if (!s.latestSnapshotId) return { ...s, snapshot: null };
-      const snapshot = await StudentSnapshot.findById(s.latestSnapshotId)
-        .select('totalSolved streak acceptanceRate syncError syncedAt easy medium hard')
-        .lean();
-      return { ...s, snapshot };
-    })
+  const enriched = await attachSnapshots(
+    students,
+    'totalSolved streak acceptanceRate syncError syncedAt easy medium hard'
   );
 
   res.json(enriched);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-const COLLAPSED_COUNT = 12;
+const COLLAPSED_COUNT = 24;
+const LIST_HEIGHT = 'h-40'; // fixed — same height collapsed or expanded
 
 function AlertIcon({ className }) {
   return (
@@ -46,27 +47,39 @@ export default function InactiveStudents({ students }) {
         )}
       </div>
 
-      <div
-        className={`mt-2.5 flex flex-wrap gap-1.5 ${
-          expanded ? 'max-h-44 overflow-y-auto pr-1' : ''
-        }`}
-      >
-        {visible.map((s) => (
-          <span
-            key={s.studentId}
-            className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-xs text-slate-700"
-          >
-            {s.displayName}
-          </span>
-        ))}
+      <div className={`relative mt-2.5 ${LIST_HEIGHT}`}>
+        <div
+          className={`h-full overflow-y-auto pr-1 ${
+            !expanded && hasMore ? 'overflow-hidden' : ''
+          }`}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {visible.map((s) => (
+              <span
+                key={s.studentId}
+                className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-xs text-slate-700"
+              >
+                {s.displayName}
+              </span>
+            ))}
+            {!expanded && hasMore && (
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="rounded-lg border border-dashed border-amber-300 bg-amber-100/50 px-2 py-1 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100"
+              >
+                +{hiddenCount} more
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Fade hint when collapsed and list overflows */}
         {!expanded && hasMore && (
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            className="rounded-lg border border-dashed border-amber-300 bg-amber-100/50 px-2 py-1 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100"
-          >
-            +{hiddenCount} more
-          </button>
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-amber-50/95 to-transparent"
+            aria-hidden
+          />
         )}
       </div>
     </div>

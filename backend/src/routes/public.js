@@ -5,8 +5,9 @@ const { Classroom, Division, Student } = require('../models');
 const { parseLeetCodeUsername } = require('../utils/slugify');
 const {
   getClassroomAnalytics,
-  getDivisionComparison,
   getStudentDetail,
+  getStudentsWithSnapshots,
+  buildDivisionComparison,
 } = require('../services/analytics.service');
 const {
   getStudentPeers,
@@ -54,8 +55,13 @@ router.get('/classrooms/:slug/analytics', async (req, res) => {
     if (div) divisionId = div._id;
   }
 
-  const analytics = await getClassroomAnalytics(classroom._id, divisionId);
-  const divisionComparison = await getDivisionComparison(classroom._id);
+  const [allStudents, divisions] = await Promise.all([
+    getStudentsWithSnapshots(classroom._id, null),
+    Division.find({ classroomId: classroom._id }).sort('sortOrder').lean(),
+  ]);
+
+  const analytics = await getClassroomAnalytics(classroom._id, divisionId, { allStudents });
+  const divisionComparison = buildDivisionComparison(allStudents, divisions);
 
   res.json({
     classroom: {

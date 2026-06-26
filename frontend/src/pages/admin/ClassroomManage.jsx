@@ -12,6 +12,7 @@ import StudentEditModal from '../../components/admin/StudentEditModal';
 import InsightsTab from '../../components/admin/InsightsTab';
 import StudentFinderTab from '../../components/admin/StudentFinderTab';
 import StudentAdminMeta from '../../components/admin/StudentAdminMeta';
+import ClassroomManageSkeleton from '../../components/admin/ClassroomManageSkeleton';
 
 export default function ClassroomManage() {
   const { id } = useParams();
@@ -19,6 +20,8 @@ export default function ClassroomManage() {
   const [divisions, setDivisions] = useState([]);
   const [students, setStudents] = useState([]);
   const [pending, setPending] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState('students');
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [syncProgress, setSyncProgress] = useState(null);
@@ -40,17 +43,23 @@ export default function ClassroomManage() {
   const activeStudents = students.filter((s) => s.status === 'active');
 
   const load = async () => {
-    const [roomRes, studentRes, pendingRes] = await Promise.all([
-      classroomApi.get(id),
-      studentApi.list(id),
-      studentApi.list(id, { status: 'pending' }),
-    ]);
-    setClassroom(roomRes.data.classroom);
-    setDivisions(roomRes.data.divisions);
-    setStudents(studentRes.data);
-    setPending(pendingRes.data);
-    if (roomRes.data.divisions.length && !studentForm.divisionId) {
-      setStudentForm((f) => ({ ...f, divisionId: roomRes.data.divisions[0]._id }));
+    try {
+      const [roomRes, studentRes, pendingRes] = await Promise.all([
+        classroomApi.get(id),
+        studentApi.list(id),
+        studentApi.list(id, { status: 'pending' }),
+      ]);
+      setClassroom(roomRes.data.classroom);
+      setDivisions(roomRes.data.divisions);
+      setStudents(studentRes.data);
+      setPending(pendingRes.data);
+      setLoadError('');
+      if (roomRes.data.divisions.length && !studentForm.divisionId) {
+        setStudentForm((f) => ({ ...f, divisionId: roomRes.data.divisions[0]._id }));
+      }
+    } catch (err) {
+      setLoadError(err.response?.data?.message || 'Failed to load classroom');
+      setClassroom(null);
     }
   };
 
@@ -67,7 +76,15 @@ export default function ClassroomManage() {
   };
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      await load();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   useEffect(() => {
@@ -198,10 +215,24 @@ export default function ClassroomManage() {
     { id: 'more', label: 'More', badge: pending.length },
   ];
 
-  if (!classroom) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <p className="text-slate-500 animate-pulse">Loading classroom…</p>
+      <AdminShell title="Classroom" subtitle="Loading…" backTo="/admin">
+        <ClassroomManageSkeleton />
+      </AdminShell>
+    );
+  }
+
+  if (loadError || !classroom) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <p className="text-red-600 font-semibold">Could not load classroom</p>
+          <p className="text-slate-600 mt-2">{loadError || 'Classroom not found'}</p>
+          <Link to="/admin" className="inline-block mt-4 text-brand-600 font-medium hover:underline">
+            Back to admin
+          </Link>
+        </div>
       </div>
     );
   }
