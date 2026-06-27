@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { formatContestRating, formatLeaderboardMetric } from '../utils/formatMetrics';
 
 const SORT_LABELS = {
   score: 'Overall Score',
@@ -91,9 +92,9 @@ const statValue = (row, sortBy) => {
     case 'weeklyActivity':
       return row.weeklyActivity;
     case 'contestRating':
-      return row.contestRating || '—';
+      return formatContestRating(row.contestRating);
     default:
-      return row.score;
+      return formatLeaderboardMetric(row.score, 'score');
   }
 };
 

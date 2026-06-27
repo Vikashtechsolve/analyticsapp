@@ -101,7 +101,8 @@ const buildLeaderboard = (studentsWithSnaps, sortBy = 'score') => {
       totalSolved: s.snapshot.totalSolved,
       streak: s.snapshot.streak,
       weeklyActivity: sumCalendarRange(s.snapshot.calendar, 7),
-      contestRating: s.snapshot.contestRating,
+      contestRating:
+        s.snapshot.contestRating != null ? Math.round(s.snapshot.contestRating) : null,
       score: computeScore(s.snapshot),
     }));
 

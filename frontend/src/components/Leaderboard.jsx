@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import RankBadge from './RankBadge';
+import { formatLeaderboardMetric } from '../utils/formatMetrics';
 
 const SORT_LABELS = {
   todaySolved: 'Today',
@@ -53,22 +54,22 @@ export default function Leaderboard({
               ? 'Solved'
               : 'Score';
 
-  const primaryMetricValue = (row) => {
-    switch (sortBy) {
-      case 'todaySolved':
-        return row.todaySolved ?? 0;
-      case 'totalSolved':
-        return row.totalSolved;
-      case 'streak':
-        return row.streak;
-      case 'weeklyActivity':
-        return row.weeklyActivity;
-      case 'contestRating':
-        return row.contestRating || '—';
-      default:
-        return Math.round(row.score ?? 0);
-    }
-  };
+  const isContestView = sortBy === 'contestRating';
+
+  const primaryMetricValue = (row) => formatLeaderboardMetric(
+    sortBy === 'todaySolved'
+      ? row.todaySolved
+      : sortBy === 'totalSolved'
+        ? row.totalSolved
+        : sortBy === 'streak'
+          ? row.streak
+          : sortBy === 'weeklyActivity'
+            ? row.weeklyActivity
+            : sortBy === 'contestRating'
+              ? row.contestRating
+              : row.score,
+    sortBy
+  );
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white flex flex-col p-0 overflow-hidden shadow-sm">
@@ -133,19 +134,25 @@ export default function Leaderboard({
             isTodayView ? '' : 'max-h-[min(420px,55vh)] overflow-auto'
           }`}
         >
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
             <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
               <tr className="text-slate-600 text-xs uppercase tracking-wider font-semibold">
                 <th className="text-left py-2.5 pl-5 pr-2 w-14">{isDivision ? 'Div' : 'Rank'}</th>
                 <th className="text-left py-2.5 pr-3">Student</th>
-                <th className="text-left py-2.5 pr-3 hidden md:table-cell">Division</th>
+                <th className="text-left py-2.5 pr-3 hidden md:table-cell w-[18%]">Division</th>
                 {isDivision && (
                   <th className="text-center py-2.5 pr-2 hidden lg:table-cell w-16">Class</th>
                 )}
                 {!isDivision && (
                   <th className="text-center py-2.5 pr-2 hidden lg:table-cell w-16">Div</th>
                 )}
-                <th className="text-right py-2.5 pr-3 w-16">{primaryMetricHeader}</th>
+                <th
+                  className={`text-right py-2.5 pr-3 ${
+                    isContestView ? 'w-[5.5rem] min-w-[5.5rem]' : 'w-16'
+                  }`}
+                >
+                  {primaryMetricHeader}
+                </th>
                 <th className="text-right py-2.5 pr-3 w-16 hidden sm:table-cell">Solved</th>
                 <th className="text-right py-2.5 pr-3 w-14 hidden sm:table-cell">Str</th>
                 <th className="text-right py-2.5 pr-5 w-14 hidden md:table-cell">Wk</th>
@@ -192,9 +199,10 @@ export default function Leaderboard({
                     </td>
                   )}
                   <td
-                    className={`py-2 pr-3 text-right font-bold tabular-nums ${
+                    className={`py-2 pr-3 text-right font-bold tabular-nums whitespace-nowrap overflow-hidden text-ellipsis ${
                       isTodayView ? 'text-emerald-600' : 'text-slate-900'
-                    }`}
+                    } ${isContestView ? 'text-sm' : ''}`}
+                    title={isContestView ? String(primaryMetricValue(row)) : undefined}
                   >
                     {primaryMetricValue(row)}
                   </td>

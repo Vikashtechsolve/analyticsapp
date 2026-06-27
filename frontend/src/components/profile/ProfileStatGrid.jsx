@@ -1,3 +1,5 @@
+import { formatContestRating } from '../../utils/formatMetrics';
+
 const STATS = [
   {
     key: 'totalSolved',
@@ -78,7 +80,11 @@ export default function ProfileStatGrid({ snapshot, analytics }) {
       {STATS.map(({ key, label, suffix, accent, bg, text, fallback }, i) => {
         const raw = values[key];
         const display =
-          raw == null || raw === '' ? fallback ?? '—' : `${raw}${suffix || ''}`;
+          key === 'contestRating'
+            ? formatContestRating(raw)
+            : raw == null || raw === ''
+              ? fallback ?? '—'
+              : `${raw}${suffix || ''}`;
         return (
           <div
             key={key}

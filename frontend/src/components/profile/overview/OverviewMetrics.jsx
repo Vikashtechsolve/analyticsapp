@@ -1,3 +1,5 @@
+import { formatContestRating } from '../../../utils/formatMetrics';
+
 const METRICS = [
   {
     key: 'totalSolved',
@@ -139,7 +141,11 @@ export default function OverviewMetrics({ snapshot, analytics }) {
 
 function MetricCard({ metric, value, delay, compact }) {
   const display =
-    value == null || value === '' ? metric.fallback ?? '—' : `${value}${metric.suffix || ''}`;
+    metric.key === 'contestRating'
+      ? formatContestRating(value)
+      : value == null || value === ''
+        ? metric.fallback ?? '—'
+        : `${value}${metric.suffix || ''}`;
 
   return (
     <div
