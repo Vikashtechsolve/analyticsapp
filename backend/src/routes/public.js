@@ -12,6 +12,7 @@ const {
 const {
   getStudentPeers,
   getStudentPeerComparison,
+  getStudentComparison,
 } = require('../services/student-analytics.service');
 
 const router = express.Router();
@@ -101,6 +102,25 @@ router.get('/classrooms/:slug/students/:studentId', async (req, res) => {
 
   const detail = await getStudentDetail(student._id);
   res.json(detail);
+});
+
+router.get('/classrooms/:slug/students/:studentId/comparison', async (req, res) => {
+  const classroom = await getClassroomBySlug(req.params.slug);
+  if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
+
+  const student = await Student.findOne({
+    _id: req.params.studentId,
+    classroomId: classroom._id,
+    status: 'active',
+  });
+  if (!student) return res.status(404).json({ message: 'Student not found' });
+
+  const comparison = await getStudentComparison(student._id, classroom._id);
+  if (!comparison) {
+    return res.status(404).json({ message: 'Comparison not available — sync data may be missing' });
+  }
+
+  res.json(comparison);
 });
 
 router.get('/classrooms/:slug/students/:studentId/peers', async (req, res) => {

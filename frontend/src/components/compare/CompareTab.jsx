@@ -4,10 +4,30 @@ import PeerPicker from './PeerPicker';
 import PeerCompareView from './PeerCompareView';
 import BenchmarkView from './BenchmarkView';
 import ProfileSection from '../profile/ProfileSection';
+import { Skeleton } from '../ui/Skeleton';
 
-export default function CompareTab({ slug, studentId, studentName, comparison, ranking }) {
+function BenchmarkSkeleton() {
+  return (
+    <div className="space-y-5" aria-hidden>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+      </div>
+      <div className="grid md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-44 rounded-2xl" />
+        ))}
+      </div>
+      <Skeleton className="h-72 rounded-2xl" />
+    </div>
+  );
+}
+
+export default function CompareTab({ slug, studentId, studentName, ranking }) {
   const [peers, setPeers] = useState([]);
   const [peersLoading, setPeersLoading] = useState(true);
+  const [comparison, setComparison] = useState(null);
+  const [comparisonLoading, setComparisonLoading] = useState(true);
   const [selectedPeerId, setSelectedPeerId] = useState(null);
   const [peerData, setPeerData] = useState(null);
   const [peerLoading, setPeerLoading] = useState(false);
@@ -15,12 +35,36 @@ export default function CompareTab({ slug, studentId, studentName, comparison, r
 
   useEffect(() => {
     if (!slug || !studentId) return;
+    let cancelled = false;
+
     setPeersLoading(true);
-    publicApi
-      .studentPeers(slug, studentId)
-      .then((res) => setPeers(res.data.peers || []))
-      .catch(() => setPeers([]))
-      .finally(() => setPeersLoading(false));
+    setComparisonLoading(true);
+
+    Promise.all([
+      publicApi.studentPeers(slug, studentId),
+      publicApi.studentComparison(slug, studentId),
+    ])
+      .then(([peersRes, comparisonRes]) => {
+        if (cancelled) return;
+        setPeers(peersRes.data.peers || []);
+        setComparison(comparisonRes.data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPeers([]);
+          setComparison(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPeersLoading(false);
+          setComparisonLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [slug, studentId]);
 
   useEffect(() => {
@@ -99,7 +143,11 @@ export default function CompareTab({ slug, studentId, studentName, comparison, r
           </svg>
         }
       >
-        <BenchmarkView comparison={comparison} ranking={selectedPeerId ? null : ranking} />
+        {comparisonLoading ? (
+          <BenchmarkSkeleton />
+        ) : (
+          <BenchmarkView comparison={comparison} ranking={selectedPeerId ? null : ranking} />
+        )}
       </ProfileSection>
     </div>
   );

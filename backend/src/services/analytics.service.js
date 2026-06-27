@@ -2,7 +2,6 @@ const { Classroom, Division, Student, StudentSnapshot } = require('../models');
 const { mapToObj, getDateRange, sumCalendarRange } = require('./analytics.utils');
 const {
   buildStudentAnalytics,
-  getStudentComparison,
   getTeacherInsights,
 } = require('./student-analytics.service');
 
@@ -339,35 +338,44 @@ const getClassroomTeacherDashboard = async (classroomId, divisionId = null) => {
   };
 };
 
+const STUDENT_PROFILE_FIELDS =
+  'displayName leetcodeUsername divisionId classroomId dailySolveLog problemProgress institute email mobile enrollmentNumber academicDepartment graduationYear status latestSnapshotId';
+
+const SNAPSHOT_PROFILE_FIELDS =
+  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown tagStats acceptanceRate totalSubmissions recentSolves';
+
 const getStudentDetail = async (studentId) => {
   const student = await Student.findById(studentId)
+    .select(STUDENT_PROFILE_FIELDS)
     .populate('divisionId', 'name slug')
     .populate('classroomId', 'name slug')
     .lean();
   if (!student) return null;
 
-  const snapshot = student.latestSnapshotId
-    ? await StudentSnapshot.findById(student.latestSnapshotId).lean()
-    : null;
+  const classroomId = student.classroomId?._id || student.classroomId;
 
-  const history = await StudentSnapshot.find({
-    studentId,
-    syncError: { $exists: false },
-    totalSolved: { $exists: true },
-  })
-    .sort({ syncedAt: 1 })
-    .limit(90)
-    .select('syncedAt totalSolved easy medium hard streak')
-    .lean();
+  const [snapshot, history, allStudents] = await Promise.all([
+    student.latestSnapshotId
+      ? StudentSnapshot.findById(student.latestSnapshotId).select(SNAPSHOT_PROFILE_FIELDS).lean()
+      : null,
+    StudentSnapshot.find({
+      studentId,
+      syncError: { $exists: false },
+      totalSolved: { $exists: true },
+    })
+      .sort({ syncedAt: 1 })
+      .limit(90)
+      .select('syncedAt totalSolved easy medium hard streak')
+      .lean(),
+    getStudentsWithSnapshots(classroomId, null),
+  ]);
 
+  let analytics = null;
   if (snapshot) {
     snapshot.calendar = mapToObj(snapshot.calendar);
+    analytics = await buildStudentAnalytics(student, snapshot);
   }
 
-  const analytics = await buildStudentAnalytics(student, snapshot);
-  const comparison = await getStudentComparison(studentId, student.classroomId);
-
-  const allStudents = await getStudentsWithSnapshots(student.classroomId, null);
   const rankings = buildStudentRankings(allStudents);
   const rankingByMetric = {};
   for (const metric of RANK_METRICS) {
@@ -384,7 +392,6 @@ const getStudentDetail = async (studentId) => {
     snapshot,
     history,
     analytics,
-    comparison,
     ranking: {
       primary: rankingByMetric.score,
       byMetric: rankingByMetric,

@@ -73,6 +73,8 @@ export const publicApi = {
     api.get(`/public/classrooms/${slug}/analytics`, { params: division ? { division } : {} }),
   division: (slug, divSlug) => api.get(`/public/classrooms/${slug}/divisions/${divSlug}`),
   student: (slug, studentId) => api.get(`/public/classrooms/${slug}/students/${studentId}`),
+  studentComparison: (slug, studentId) =>
+    api.get(`/public/classrooms/${slug}/students/${studentId}/comparison`),
   studentPeers: (slug, studentId) =>
     api.get(`/public/classrooms/${slug}/students/${studentId}/peers`),
   compareStudents: (slug, studentId, peerId) =>

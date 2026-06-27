@@ -39,7 +39,7 @@ export default function StudentProfile() {
     );
   }
 
-  const { student, snapshot, history, analytics, comparison, ranking } = data;
+  const { student, snapshot, history, analytics, ranking } = data;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -92,7 +92,6 @@ export default function StudentProfile() {
                   slug={slug}
                   studentId={studentId}
                   studentName={student.displayName}
-                  comparison={comparison}
                   ranking={ranking}
                 />
               </TabPanel>

@@ -283,6 +283,40 @@ const avgMastery = (masteryList) => {
   return Math.round(masteryList.reduce((s, t) => s + t.mastery, 0) / masteryList.length);
 };
 
+const quickAnalyticsFromSnapshot = (snapshot) => {
+  const topicMastery = calculateMasteryFromTagStats(snapshot?.tagStats, snapshot, []) || [];
+  return {
+    topicMastery,
+    avgMastery: avgMastery(topicMastery),
+  };
+};
+
+const loadClassroomSnapshots = async (classroomId) => {
+  const students = await Student.find({ classroomId, status: 'active' })
+    .select(
+      'displayName leetcodeUsername divisionId latestSnapshotId institute email mobile enrollmentNumber academicDepartment dailySolveLog problemProgress'
+    )
+    .populate('divisionId', 'name slug')
+    .lean();
+
+  const snapshotIds = students.map((s) => s.latestSnapshotId).filter(Boolean);
+  const snapshots = snapshotIds.length
+    ? await StudentSnapshot.find({ _id: { $in: snapshotIds } })
+        .select(
+          'totalSolved easy medium hard streak calendar acceptanceRate tagStats syncError totalSubmissions'
+        )
+        .lean()
+    : [];
+  const snapById = new Map(snapshots.map((s) => [String(s._id), s]));
+
+  return students.map((student) => ({
+    student,
+    snapshot: student.latestSnapshotId
+      ? snapById.get(String(student.latestSnapshotId)) || null
+      : null,
+  }));
+};
+
 const buildProblemProgressFromLog = (dailySolveLog, existingProgress = []) => {
   const bySlug = Object.fromEntries((existingProgress || []).map((p) => [p.slug, { ...p }]));
 
@@ -354,36 +388,30 @@ const buildStudentAnalytics = async (student, snapshot) => {
 };
 
 const getStudentComparison = async (studentId, classroomId) => {
-  const student = await Student.findById(studentId).lean();
-  if (!student) return null;
-
-  const snapshot = student.latestSnapshotId
-    ? await StudentSnapshot.findById(student.latestSnapshotId).lean()
-    : null;
-
-  const classmates = await Student.find({ classroomId, status: 'active' }).lean();
-  const classData = await Promise.all(
-    classmates.map(async (s) => {
-      const snap = s.latestSnapshotId
-        ? await StudentSnapshot.findById(s.latestSnapshotId).lean()
-        : null;
-      const analytics = await buildStudentAnalytics(s, snap);
-      return { student: s, snapshot: snap, analytics };
-    })
-  );
-
+  const classData = await loadClassroomSnapshots(classroomId);
   const valid = classData.filter((d) => d.snapshot && !d.snapshot.syncError);
   const mine = classData.find((d) => String(d.student._id) === String(studentId));
   if (!mine?.snapshot) return null;
 
-  const myAnalytics = mine.analytics;
+  const myAnalytics = await buildStudentAnalytics(mine.student, mine.snapshot);
+
+  const masteryFor = (entry) => {
+    if (String(entry.student._id) === String(studentId)) return myAnalytics.avgMastery;
+    return quickAnalyticsFromSnapshot(entry.snapshot).avgMastery;
+  };
+
+  const topicMasteryFor = (entry) => {
+    if (String(entry.student._id) === String(studentId)) return myAnalytics.topicMastery;
+    return quickAnalyticsFromSnapshot(entry.snapshot).topicMastery;
+  };
+
   const classAvgSolved =
     valid.length > 0
       ? Math.round(valid.reduce((s, d) => s + d.snapshot.totalSolved, 0) / valid.length)
       : 0;
   const classAvgMastery =
     valid.length > 0
-      ? Math.round(valid.reduce((s, d) => s + d.analytics.avgMastery, 0) / valid.length)
+      ? Math.round(valid.reduce((s, d) => s + masteryFor(d), 0) / valid.length)
       : 0;
   const classAvgStreak =
     valid.length > 0
@@ -402,11 +430,12 @@ const getStudentComparison = async (studentId, classroomId) => {
     syncError: { $exists: false },
   })
     .sort({ syncedAt: -1 })
+    .select('syncedAt totalSolved easy medium hard')
     .lean();
 
   const topicBenchmarks = myAnalytics.topicMastery.map((t) => {
     const classTopicScores = valid.map((d) => {
-      const found = d.analytics.topicMastery.find((m) => m.tag === t.tag);
+      const found = topicMasteryFor(d).find((m) => m.tag === t.tag);
       return found?.mastery || 0;
     });
     const classTopicAvg =
@@ -435,9 +464,9 @@ const getStudentComparison = async (studentId, classroomId) => {
       ? {
           name: top.student.displayName,
           solvedGap: top.snapshot.totalSolved - mine.snapshot.totalSolved,
-          masteryGap: top.analytics.avgMastery - myAnalytics.avgMastery,
+          masteryGap: masteryFor(top) - myAnalytics.avgMastery,
           topSolved: top.snapshot.totalSolved,
-          topMastery: top.analytics.avgMastery,
+          topMastery: masteryFor(top),
         }
       : null,
     vsPreviousMonth: oldSnap
@@ -654,18 +683,12 @@ const buildStudentSummary = (entry) => {
 };
 
 const getClassroomStudentData = async (classroomId) => {
-  const classmates = await Student.find({ classroomId, status: 'active' })
-    .populate('divisionId', 'name slug')
-    .lean();
-  return Promise.all(
-    classmates.map(async (s) => {
-      const snap = s.latestSnapshotId
-        ? await StudentSnapshot.findById(s.latestSnapshotId).lean()
-        : null;
-      const analytics = await buildStudentAnalytics(s, snap);
-      return { student: s, snapshot: snap, analytics };
-    })
-  );
+  const classData = await loadClassroomSnapshots(classroomId);
+  return classData.map(({ student, snapshot }) => ({
+    student,
+    snapshot,
+    analytics: snapshot ? quickAnalyticsFromSnapshot(snapshot) : { topicMastery: [], avgMastery: 0 },
+  }));
 };
 
 const getStudentPeers = async (classroomId, studentId) => {
