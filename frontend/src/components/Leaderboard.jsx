@@ -74,7 +74,7 @@ export default function Leaderboard({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white flex flex-col p-0 overflow-hidden shadow-sm">
       {/* Header — fixed */}
-      <div className="shrink-0 px-5 pt-5 pb-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+      <div className="shrink-0 px-4 sm:px-5 pt-4 sm:pt-5 pb-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
@@ -130,14 +130,14 @@ export default function Leaderboard({
         </p>
       ) : (
         <div
-          className={`relative flex-1 min-h-0 ${
-            isTodayView ? '' : 'max-h-[min(420px,55vh)] overflow-auto'
+          className={`relative flex-1 min-h-0 overflow-x-auto ${
+            isTodayView ? '' : 'max-h-[min(420px,55vh)] overflow-y-auto'
           }`}
         >
-          <table className="w-full text-sm table-fixed">
+          <table className="w-full min-w-[320px] text-sm table-fixed">
             <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
               <tr className="text-slate-600 text-xs uppercase tracking-wider font-semibold">
-                <th className="text-left py-2.5 pl-5 pr-2 w-14">{isDivision ? 'Div' : 'Rank'}</th>
+                <th className="text-left py-2.5 pl-4 sm:pl-5 pr-2 w-14">{isDivision ? 'Div' : 'Rank'}</th>
                 <th className="text-left py-2.5 pr-3">Student</th>
                 <th className="text-left py-2.5 pr-3 hidden md:table-cell w-[18%]">Division</th>
                 {isDivision && (
@@ -155,7 +155,7 @@ export default function Leaderboard({
                 </th>
                 <th className="text-right py-2.5 pr-3 w-16 hidden sm:table-cell">Solved</th>
                 <th className="text-right py-2.5 pr-3 w-14 hidden sm:table-cell">Str</th>
-                <th className="text-right py-2.5 pr-5 w-14 hidden md:table-cell">Wk</th>
+                <th className="text-right py-2.5 pr-4 sm:pr-5 w-14 hidden md:table-cell">Wk</th>
               </tr>
             </thead>
             <tbody>
@@ -164,7 +164,7 @@ export default function Leaderboard({
                   key={row.studentId}
                   className="border-b border-slate-200 hover:bg-slate-100 transition-colors"
                 >
-                  <td className="py-2 pl-5 pr-2">
+                  <td className="py-2 pl-4 sm:pl-5 pr-2">
                     <RankBadge rank={row.rank} size="sm" />
                   </td>
                   <td className="py-2 pr-3 min-w-[140px]">
@@ -212,7 +212,7 @@ export default function Leaderboard({
                   <td className="py-2 pr-3 text-right tabular-nums text-slate-700 font-medium hidden sm:table-cell">
                     {row.streak}
                   </td>
-                  <td className="py-2 pr-5 text-right tabular-nums text-slate-700 font-medium hidden md:table-cell">
+                  <td className="py-2 pr-4 sm:pr-5 text-right tabular-nums text-slate-700 font-medium hidden md:table-cell">
                     {row.weeklyActivity}
                   </td>
                 </tr>
@@ -224,7 +224,7 @@ export default function Leaderboard({
 
       {/* Footer */}
       {filtered.length > 0 && (
-        <div className="shrink-0 px-5 py-2.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="shrink-0 px-4 sm:px-5 py-2.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500">
           <span>
             Showing {filtered.length}
             {search ? ` of ${rankedItems.length}` : ''} students

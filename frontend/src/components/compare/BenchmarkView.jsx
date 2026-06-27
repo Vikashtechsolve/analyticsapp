@@ -52,7 +52,7 @@ function RankStrip({ ranking }) {
         <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 flex items-center justify-between">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Classroom</p>
-            <p className="text-3xl font-black text-amber-700 tabular-nums mt-1">
+            <p className="text-2xl sm:text-3xl font-black text-amber-700 tabular-nums mt-1">
               #{overall.rank}
               <span className="text-base text-slate-500 font-semibold"> / {overall.total}</span>
             </p>
@@ -68,7 +68,7 @@ function RankStrip({ ranking }) {
             <p className="text-[10px] font-bold uppercase tracking-wider text-brand-700">
               {division.divisionName || 'Division'}
             </p>
-            <p className="text-3xl font-black text-brand-600 tabular-nums mt-1">
+            <p className="text-2xl sm:text-3xl font-black text-brand-600 tabular-nums mt-1">
               #{division.rank}
               <span className="text-base text-slate-500 font-semibold"> / {division.total}</span>
             </p>
@@ -99,7 +99,7 @@ export default function BenchmarkView({ comparison, ranking }) {
     <div className="space-y-5">
       <RankStrip ranking={ranking} />
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <BenchmarkCard title="Class average" subtitle="How you compare to peers" accent="brand" delay={0.05}>
           <CompareMetricRow
             label="Problems solved"
@@ -107,7 +107,7 @@ export default function BenchmarkView({ comparison, ranking }) {
             them={vsClassAvg.classAvgSolved || 0}
             themLabel="Class avg"
           />
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
             <div className="text-center">
               <p className="text-[10px] text-slate-500 font-bold uppercase">Solved Δ</p>
               <p className="text-lg font-bold mt-1">

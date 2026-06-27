@@ -43,7 +43,7 @@ export default function StudentProfile() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="max-w-6xl mx-auto px-4 pt-5 pb-12">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 pt-4 sm:pt-5 pb-12">
         <ProfileHero
           student={student}
           snapshot={snapshot}

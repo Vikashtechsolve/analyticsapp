@@ -222,8 +222,8 @@ Parul mail ID, Mobile number (optional), Leetcode`}
               {results.summary.failed} failed
             </span>
           </div>
-          <div className="rounded-xl border border-slate-200 overflow-hidden max-h-64 overflow-y-auto">
-            <table className="w-full text-sm">
+          <div className="rounded-xl border border-slate-200 overflow-hidden max-h-64 overflow-y-auto overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
               <thead className="sticky top-0 bg-slate-50">
                 <tr className="text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
                   <th className="text-left py-2.5 pl-4 pr-2">Name</th>

@@ -219,7 +219,7 @@ function PodiumPedestal({ rank, theme, isFirst, delay }) {
           {/* Watermark number */}
           <div className="absolute inset-0 flex items-center justify-center pt-1">
             <span
-              className={`text-[4.5rem] sm:text-[5.5rem] font-black leading-none select-none ${theme.watermark}`}
+              className={`text-[3rem] sm:text-[4.5rem] md:text-[5.5rem] font-black leading-none select-none ${theme.watermark}`}
               style={{ WebkitTextStroke: '1px rgba(255,255,255,0.12)' }}
               aria-hidden
             >
@@ -287,7 +287,7 @@ function PodiumSpot({ row, rank, classroomSlug, sortBy, maxScore }) {
 
   return (
     <div
-      className={`flex flex-col items-stretch flex-1 min-w-0 max-w-[240px] opacity-0 animate-hof-rise ${isFirst ? 'sm:-mt-2 z-10' : ''}`}
+      className={`flex flex-col items-stretch flex-1 min-w-0 w-full sm:max-w-[240px] opacity-0 animate-hof-rise ${isFirst ? 'sm:-mt-2 z-10' : ''}`}
       style={{ animationDelay: theme.delay }}
     >
       <Link
@@ -380,7 +380,7 @@ function TodayPodiumSpot({ row, rank, classroomSlug, leaderToday, runnerUpToday 
 
   return (
     <div
-      className={`flex flex-col items-stretch flex-1 min-w-0 max-w-[240px] opacity-0 animate-hof-rise ${
+      className={`flex flex-col items-stretch flex-1 min-w-0 w-full sm:max-w-[240px] opacity-0 animate-hof-rise ${
         isFirst ? 'sm:-mt-2 z-10' : ''
       }`}
       style={{ animationDelay: theme.delay }}
@@ -542,7 +542,7 @@ function PodiumStage({ count, children }) {
   return (
     <div className="relative pt-2 pb-1">
       <div className="mx-auto w-full" style={{ maxWidth: `${maxWidth}px` }}>
-        <div className="flex items-end justify-center gap-2 sm:gap-3 lg:gap-5 relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-center gap-3 sm:gap-2 md:gap-3 lg:gap-5 relative z-10">
           {children}
         </div>
         {/* Shared stage floor */}
@@ -656,13 +656,13 @@ export default function TopPerformersPodium({
           </div>
 
           {showSortTabs && (
-            <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 gap-0.5 flex-wrap">
+            <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 gap-0.5 flex-wrap w-full sm:w-auto">
               {sorts.map((s) => (
                 <button
                   key={s.key}
                   type="button"
                   onClick={() => onSortChange?.(s.key)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
                     sortBy === s.key
                       ? isToday && s.key === 'todaySolved'
                         ? 'bg-emerald-500 text-white shadow-sm'

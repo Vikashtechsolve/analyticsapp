@@ -204,6 +204,7 @@ export default function ActivityHeatmap({ calendar, streak, variant }) {
       <TooltipBar tooltip={tooltip} />
 
       <div className="rounded-2xl bg-gradient-to-b from-slate-50 to-white border border-slate-200 p-4 sm:p-5 overflow-x-auto">
+        <p className="text-[10px] text-slate-400 mb-2 sm:hidden">← Swipe to see full year</p>
         <div className="inline-block min-w-0">
           <div className="flex mb-2 ml-9" style={{ gap: '3px' }}>
             {grid.weeks.map((_, wi) => {

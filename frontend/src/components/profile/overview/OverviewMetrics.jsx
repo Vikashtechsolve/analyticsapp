@@ -129,7 +129,7 @@ export default function OverviewMetrics({ snapshot, analytics }) {
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
           Difficulty breakdown
         </p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {difficulty.map((m, i) => (
             <MetricCard key={m.key} metric={m} value={values[m.key]} delay={0.15 + i * 0.04} compact />
           ))}
@@ -158,7 +158,7 @@ function MetricCard({ metric, value, delay, compact }) {
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
           <p
-            className={`${compact ? 'text-2xl' : 'text-3xl'} font-black tabular-nums mt-1 ${metric.text}`}
+            className={`${compact ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black tabular-nums mt-1 ${metric.text}`}
           >
             {display}
           </p>

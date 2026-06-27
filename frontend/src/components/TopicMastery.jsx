@@ -21,8 +21,12 @@ function TopicCard({ topic, index, featured }) {
         style={{ animationDelay: `${index * 0.06}s` }}
       >
         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${strength.gradient}`} />
-        <div className="flex items-start gap-4">
-          <MasteryRing value={topic.mastery} size={88} stroke={7} color={strength.ring}>
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+          <MasteryRing value={topic.mastery} size={72} stroke={6} color={strength.ring} className="sm:hidden shrink-0">
+            <span className="text-lg font-black text-slate-900 tabular-nums">{topic.mastery}</span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase">%</span>
+          </MasteryRing>
+          <MasteryRing value={topic.mastery} size={88} stroke={7} color={strength.ring} className="hidden sm:block shrink-0">
             <span className="text-xl font-black text-slate-900 tabular-nums">{topic.mastery}</span>
             <span className="text-[9px] font-bold text-slate-500 uppercase">%</span>
           </MasteryRing>
@@ -185,7 +189,7 @@ export default function TopicMastery({ topics, avgMastery }) {
               <h4 className="text-base font-bold text-slate-900">Best performing topics</h4>
             </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
             {stats.top3.map((t, i) => (
               <TopicCard key={t.tag} topic={t} index={i} featured />
             ))}

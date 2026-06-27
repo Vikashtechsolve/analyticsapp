@@ -57,14 +57,14 @@ export default function DailySolvesPanel({ dailySolves, variant }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-3">
-        <div className={`rounded-2xl border px-5 py-3 ${isOverview ? 'bg-gradient-to-br from-brand-50 to-white border-brand-100 shadow-sm' : 'bg-brand-50 border-brand-100'}`}>
-          <p className="text-3xl font-black text-brand-600 tabular-nums">{dailySolves.byDate.length}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className={`rounded-2xl border px-4 sm:px-5 py-3 ${isOverview ? 'bg-gradient-to-br from-brand-50 to-white border-brand-100 shadow-sm' : 'bg-brand-50 border-brand-100'}`}>
+          <p className="text-2xl sm:text-3xl font-black text-brand-600 tabular-nums">{dailySolves.byDate.length}</p>
           <p className="text-[10px] font-bold text-brand-700 uppercase tracking-wider mt-0.5">Coding days</p>
           <p className="text-[10px] text-slate-500 mt-1">Days with at least one solve</p>
         </div>
-        <div className={`rounded-2xl border px-5 py-3 ${isOverview ? 'bg-gradient-to-br from-slate-50 to-white border-slate-200 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-          <p className="text-3xl font-black text-slate-800 tabular-nums">{dailySolves.totalLogged}</p>
+        <div className={`rounded-2xl border px-4 sm:px-5 py-3 ${isOverview ? 'bg-gradient-to-br from-slate-50 to-white border-slate-200 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
+          <p className="text-2xl sm:text-3xl font-black text-slate-800 tabular-nums">{dailySolves.totalLogged}</p>
           <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-0.5">Problems logged</p>
           <p className="text-[10px] text-slate-500 mt-1">Tracked in your daily journal</p>
         </div>

@@ -21,11 +21,11 @@ export default function OverviewStory({ story, ranking }) {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3 shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0 w-full lg:w-auto">
             {rank && (
-              <div className="rounded-xl bg-white/10 backdrop-blur border border-white/15 px-4 py-3 min-w-[100px]">
+              <div className="rounded-xl bg-white/10 backdrop-blur border border-white/15 px-4 py-3">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Class rank</p>
-                <p className="text-3xl font-black tabular-nums mt-1">
+                <p className="text-2xl sm:text-3xl font-black tabular-nums mt-1">
                   #{rank}
                   {percentile != null && (
                     <span className="text-sm font-semibold text-brand-300 ml-1.5">Top {percentile}%</span>
@@ -33,13 +33,13 @@ export default function OverviewStory({ story, ranking }) {
                 </p>
               </div>
             )}
-            <div className="rounded-xl bg-white/10 backdrop-blur border border-white/15 px-4 py-3 min-w-[100px]">
+            <div className="rounded-xl bg-white/10 backdrop-blur border border-white/15 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Overall score</p>
-              <p className="text-3xl font-black tabular-nums text-brand-300 mt-1">{story.score}</p>
+              <p className="text-2xl sm:text-3xl font-black tabular-nums text-brand-300 mt-1">{story.score}</p>
             </div>
-            <div className="rounded-xl bg-white/10 backdrop-blur border border-white/15 px-4 py-3 min-w-[100px]">
+            <div className="rounded-xl bg-white/10 backdrop-blur border border-white/15 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">This week</p>
-              <p className="text-3xl font-black tabular-nums mt-1">{story.weekly}</p>
+              <p className="text-2xl sm:text-3xl font-black tabular-nums mt-1">{story.weekly}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">submissions</p>
             </div>
           </div>

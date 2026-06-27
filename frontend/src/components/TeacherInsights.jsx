@@ -50,7 +50,7 @@ function StudentPanel({
     <div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <input
-          className="input text-sm py-1.5 flex-1 min-w-[140px] max-w-xs"
+          className="input text-sm py-1.5 flex-1 min-w-0 sm:min-w-[140px] max-w-full sm:max-w-xs"
           placeholder="Search name, institute, dept, mobile…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -65,8 +65,8 @@ function StudentPanel({
           expanded ? 'max-h-[min(420px,55vh)]' : ''
         }`}
       >
-        <div className={expanded ? 'overflow-auto max-h-[min(420px,55vh)]' : ''}>
-          <table className="w-full text-sm">
+        <div className={expanded ? 'overflow-x-auto overflow-y-auto max-h-[min(420px,55vh)]' : 'overflow-x-auto'}>
+          <table className="w-full text-sm min-w-[480px]">
             <thead className="bg-slate-50 sticky top-0 z-10 shadow-[0_1px_0_0_rgb(226,232,240)]">
               <tr className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
                 {columns.map((col) => (
@@ -405,7 +405,7 @@ export default function TeacherInsights({ insights, classroomSlug }) {
             ))}
           </div>
           <input
-            className="input text-sm py-1.5 flex-1 min-w-[140px] max-w-xs"
+            className="input text-sm py-1.5 flex-1 min-w-0 sm:min-w-[140px] max-w-full sm:max-w-xs"
             placeholder="Search student, institute, dept, mobile…"
             value={dailySearch}
             onChange={(e) => setDailySearch(e.target.value)}

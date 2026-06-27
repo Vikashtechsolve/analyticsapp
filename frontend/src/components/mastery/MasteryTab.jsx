@@ -28,7 +28,7 @@ export default function MasteryTab({ analytics }) {
                 before you forget it.
               </p>
             </div>
-            <div className="flex gap-3 shrink-0">
+            <div className="flex flex-wrap gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
               <div className="rounded-xl bg-white border border-emerald-100 px-4 py-2.5 text-center shadow-sm">
                 <p className="text-2xl font-black text-emerald-600 tabular-nums">{avgMastery}%</p>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Avg mastery</p>

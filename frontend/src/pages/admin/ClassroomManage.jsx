@@ -254,7 +254,7 @@ export default function ClassroomManage() {
       backTo="/admin"
       actions={<SyncButton progress={syncProgress} onClick={handleSync} />}
     >
-      <div className="grid grid-cols-4 gap-2 mb-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
         <AdminStatCard label="Students" value={activeStudents.length} accent="brand" compact />
         <AdminStatCard label="Divisions" value={divisions.length} accent="violet" compact delay={0.03} />
         <AdminStatCard label="Pending" value={pending.length} accent="amber" compact delay={0.06} />

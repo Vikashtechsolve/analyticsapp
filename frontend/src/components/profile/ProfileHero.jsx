@@ -15,7 +15,7 @@ export default function ProfileHero({ student, snapshot, analytics, ranking, cla
   const division = ranking?.primary?.division;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-brand-50/40 p-6 md:p-8 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-brand-50/40 p-4 sm:p-6 md:p-8 shadow-sm">
       <div className="absolute top-0 right-0 w-72 h-72 bg-brand-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
 
@@ -74,27 +74,27 @@ export default function ProfileHero({ student, snapshot, analytics, ranking, cla
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 lg:gap-4 shrink-0">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3 lg:gap-4 shrink-0 w-full lg:w-auto">
             {overall?.rank && (
-              <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-center min-w-[88px]">
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 sm:px-4 py-2.5 sm:py-3 text-center">
                 <RankBadge rank={overall.rank} size="lg" className="mx-auto mb-1" />
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">Class rank</p>
                 <p className="text-xs text-slate-600 mt-0.5">of {overall.total}</p>
               </div>
             )}
             {division?.rank && (
-              <div className="rounded-xl border border-brand-500/25 bg-brand-500/5 px-4 py-3 text-center min-w-[88px]">
+              <div className="rounded-xl border border-brand-500/25 bg-brand-500/5 px-3 sm:px-4 py-2.5 sm:py-3 text-center">
                 <RankBadge rank={division.rank} size="lg" className="mx-auto mb-1" />
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">Div rank</p>
                 <p className="text-xs text-slate-600 mt-0.5">of {division.total}</p>
               </div>
             )}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center min-w-[72px]">
-              <p className="text-2xl font-bold text-brand-400 tabular-nums">{mastery}%</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 sm:px-4 py-2.5 sm:py-3 text-center">
+              <p className="text-xl sm:text-2xl font-bold text-brand-400 tabular-nums">{mastery}%</p>
               <p className="text-[10px] uppercase tracking-wider text-slate-500">Mastery</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center min-w-[72px]">
-              <p className="text-2xl font-bold text-slate-900 tabular-nums">{snapshot?.totalSolved ?? '—'}</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 sm:px-4 py-2.5 sm:py-3 text-center">
+              <p className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">{snapshot?.totalSolved ?? '—'}</p>
               <p className="text-[10px] uppercase tracking-wider text-slate-500">Solved</p>
             </div>
           </div>

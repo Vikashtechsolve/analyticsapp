@@ -43,15 +43,15 @@ export default function StudentsRoster({
       noPadding
       headerAction={headerAction}
     >
-      <div className="px-4 sm:px-6 pb-4 flex flex-wrap gap-3 border-b border-slate-100">
+      <div className="px-4 sm:px-6 pb-4 flex flex-col sm:flex-row flex-wrap gap-3 border-b border-slate-100">
         <input
-          className="input max-w-xs text-sm flex-1 min-w-[180px]"
+          className="input max-w-full sm:max-w-xs text-sm flex-1 min-w-0"
           placeholder="Search name, institute, dept, mobile, enrollment…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="input text-sm max-w-[160px] py-2"
+          className="input text-sm w-full sm:max-w-[160px] py-2"
           value={divisionFilter}
           onChange={(e) => setDivisionFilter(e.target.value)}
         >
@@ -63,7 +63,7 @@ export default function StudentsRoster({
           ))}
         </select>
         <select
-          className="input text-sm max-w-[140px] py-2"
+          className="input text-sm w-full sm:max-w-[140px] py-2"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
         >

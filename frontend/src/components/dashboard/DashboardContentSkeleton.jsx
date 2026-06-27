@@ -15,10 +15,10 @@ export default function DashboardContentSkeleton() {
           </div>
           <Skeleton className="h-8 w-56 rounded-lg" />
         </div>
-        <div className="flex items-end justify-center gap-3">
-          <Skeleton className="h-52 w-[30%] rounded-2xl" />
-          <Skeleton className="h-64 w-[34%] rounded-2xl" />
-          <Skeleton className="h-48 w-[30%] rounded-2xl" />
+        <div className="flex flex-col sm:flex-row sm:items-end justify-center gap-3 max-w-sm sm:max-w-none mx-auto">
+          <Skeleton className="h-48 sm:h-52 w-full sm:w-[30%] rounded-2xl" />
+          <Skeleton className="h-56 sm:h-64 w-full sm:w-[34%] rounded-2xl" />
+          <Skeleton className="h-44 sm:h-48 w-full sm:w-[30%] rounded-2xl" />
         </div>
       </div>
 

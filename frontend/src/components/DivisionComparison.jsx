@@ -42,7 +42,7 @@ export default function DivisionComparison({ data, classroomSlug }) {
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="font-semibold text-slate-900">{d.name}</p>
             <p className="text-slate-500 text-sm mt-1">{d.totalStudents} students</p>
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
               {METRICS.map((m) => (
                 <div key={m.key} className="text-center">
                   <p className={`text-xl font-bold tabular-nums ${m.text}`}>{d[m.key] ?? 0}</p>
@@ -61,7 +61,7 @@ export default function DivisionComparison({ data, classroomSlug }) {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,0.1),transparent_55%)]" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-600/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative px-5 pt-5 pb-4 border-b border-slate-200">
+      <div className="relative px-4 sm:px-5 pt-4 sm:pt-5 pb-4 border-b border-slate-200">
         <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-sky-500/90 mb-1">
           Divisions
         </p>
@@ -71,7 +71,7 @@ export default function DivisionComparison({ data, classroomSlug }) {
         </p>
       </div>
 
-      <div className="relative p-5 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="relative p-4 sm:p-5 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {enriched.map((div) => (
           <Link
             key={div.divisionId || div.slug || div.name}
@@ -128,7 +128,7 @@ export default function DivisionComparison({ data, classroomSlug }) {
       </div>
 
       {/* Summary strip */}
-      <div className="relative px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap gap-4 justify-center sm:justify-start">
+      <div className="relative px-4 sm:px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap gap-4 justify-center sm:justify-start">
         {METRICS.map((m) => {
           const best = enriched.reduce((a, b) => ((a[m.key] || 0) >= (b[m.key] || 0) ? a : b));
           return (

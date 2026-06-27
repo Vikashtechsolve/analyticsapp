@@ -52,11 +52,16 @@ export default function TopicWeaknessTable({ topics, limit = 12 }) {
                         />
                       </div>
                       <span
-                        className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md border hidden md:inline ${tone.badge}`}
+                        className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md border hidden sm:inline ${tone.badge}`}
                       >
                         {t.classMastery < 40 ? 'Weak' : t.classMastery < 60 ? 'Fair' : 'OK'}
                       </span>
                     </div>
+                    <span
+                      className={`inline-block sm:hidden mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md border ${tone.badge}`}
+                    >
+                      {t.classMastery < 40 ? 'Weak' : t.classMastery < 60 ? 'Fair' : 'OK'}
+                    </span>
                   </td>
                 </tr>
               );

@@ -378,7 +378,7 @@ export default function TeacherStudentFilter({
 
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
             <input
-              className="input max-w-xs text-sm py-2 flex-1 min-w-[160px]"
+              className="input max-w-full sm:max-w-xs text-sm py-2 flex-1 min-w-0"
               placeholder="Search name, institute, dept, mobile…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}

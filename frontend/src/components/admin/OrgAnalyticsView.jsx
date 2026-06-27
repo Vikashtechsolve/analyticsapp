@@ -12,7 +12,7 @@ function MetricTable({ title, subtitle, columns, rows, onRowClick, emptyMessage 
       {!rows?.length ? (
         <p className="text-sm text-slate-500 text-center py-8">{emptyMessage || 'No data in scope'}</p>
       ) : (
-        <div className="max-h-[min(360px,50vh)] overflow-auto">
+        <div className="max-h-[min(360px,50vh)] overflow-auto overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white border-b border-slate-200 z-10">
               <tr className="text-[10px] uppercase tracking-wider text-slate-500">
@@ -354,7 +354,7 @@ export default function OrgAnalyticsView({
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 px-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 px-1">
         {showFacultyLevel && (
           <AdminStatCard label="Faculties" value={summary.faculties ?? '—'} accent="violet" compact />
         )}

@@ -28,7 +28,7 @@ function ScoreboardCard({ label, you, peer, unit = '', invert = false }) {
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
       <div className="flex items-center justify-center gap-3 mt-2">
         <div>
-          <p className="text-2xl font-black text-brand-600 tabular-nums">
+          <p className="text-xl sm:text-2xl font-black text-brand-600 tabular-nums">
             {you}
             {unit}
           </p>
@@ -36,7 +36,7 @@ function ScoreboardCard({ label, you, peer, unit = '', invert = false }) {
         </div>
         <span className="text-slate-300 font-bold">vs</span>
         <div>
-          <p className="text-2xl font-black text-violet-600 tabular-nums">
+          <p className="text-xl sm:text-2xl font-black text-violet-600 tabular-nums">
             {peer}
             {unit}
           </p>
@@ -93,14 +93,14 @@ export default function PeerCompareView({ data, loading }) {
               {peer.divisionName && ` · ${peer.divisionName}`}
             </p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex items-center justify-center gap-4 sm:gap-6 w-full sm:w-auto">
             <div className="text-center">
-              <p className="text-3xl font-black text-brand-400 tabular-nums">#{you.rank}</p>
+              <p className="text-2xl sm:text-3xl font-black text-brand-400 tabular-nums">#{you.rank}</p>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider">Your rank</p>
             </div>
             <div className="text-2xl text-slate-600 self-center">·</div>
             <div className="text-center">
-              <p className="text-3xl font-black text-violet-300 tabular-nums">#{peer.rank}</p>
+              <p className="text-2xl sm:text-3xl font-black text-violet-300 tabular-nums">#{peer.rank}</p>
               <p className="text-[10px] text-slate-400 uppercase tracking-wider">Their rank</p>
             </div>
           </div>
@@ -136,7 +136,7 @@ export default function PeerCompareView({ data, loading }) {
       {/* Difficulty */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <p className="text-sm font-bold text-slate-900 mb-4">Difficulty breakdown</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
             { label: 'Easy', key: 'easy', color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
             { label: 'Medium', key: 'medium', color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
@@ -163,7 +163,7 @@ export default function PeerCompareView({ data, loading }) {
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
           <p className="text-sm font-bold text-slate-900">Topic mastery face-off</p>
           <p className="text-xs text-slate-500 mb-4">Biggest mastery gaps across shared topics</p>
-          <div className="h-72 rounded-xl bg-white border border-slate-100 p-2">
+          <div className="h-56 sm:h-72 rounded-xl bg-white border border-slate-100 p-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barGap={4} barCategoryGap="18%">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />

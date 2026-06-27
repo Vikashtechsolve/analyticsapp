@@ -56,7 +56,7 @@ export default function ProfileTabs({ active, onChange }) {
                 key={tab.id}
                 type="button"
                 onClick={() => onChange(tab.id)}
-                className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all duration-200 ${
+                className={`relative flex items-center gap-2 sm:gap-2.5 rounded-xl px-2.5 sm:px-3 py-2 sm:py-2.5 text-left transition-all duration-200 ${
                   isActive
                     ? 'bg-gradient-to-r from-brand-600 to-orange-500 text-white shadow-md shadow-brand-200/50'
                     : 'bg-slate-50 border border-slate-200 text-slate-600 hover:border-brand-200 hover:bg-white'
@@ -73,7 +73,7 @@ export default function ProfileTabs({ active, onChange }) {
                   <span className={`block text-sm font-semibold truncate ${isActive ? 'text-white' : 'text-slate-800'}`}>
                     {tab.label}
                   </span>
-                  <span className={`block text-[10px] truncate mt-0.5 ${isActive ? 'text-white/80' : 'text-slate-500'}`}>
+                  <span className={`hidden sm:block text-[10px] truncate mt-0.5 ${isActive ? 'text-white/80' : 'text-slate-500'}`}>
                     {tab.desc}
                   </span>
                 </span>
