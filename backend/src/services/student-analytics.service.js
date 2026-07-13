@@ -1,5 +1,5 @@
 const { ProblemCache, Student, StudentSnapshot } = require('../models');
-const { sumCalendarRange, mapToObj } = require('./analytics.utils');
+const { sumCalendarRange, mapToObj, countUniqueSolvesOnDate } = require('./analytics.utils');
 
 const DIFF_WEIGHT = { Easy: 1, Medium: 2, Hard: 3 };
 const REVISION_DAYS = [7, 15, 30];
@@ -303,7 +303,7 @@ const loadClassroomSnapshots = async (classroomId) => {
   const snapshots = snapshotIds.length
     ? await StudentSnapshot.find({ _id: { $in: snapshotIds } })
         .select(
-          'totalSolved easy medium hard streak calendar acceptanceRate tagStats syncError totalSubmissions'
+          'totalSolved easy medium hard streak calendar acceptanceRate tagStats syncError totalSubmissions recentSolves'
         )
         .lean()
     : [];
@@ -578,13 +578,18 @@ const getTeacherInsights = async (studentsWithSnaps) => {
     .sort((a, b) => a.classMastery - b.classMastery);
 
   const today = new Date().toISOString().slice(0, 10);
-  const dailyReport = enriched.map((s) => ({
-    studentId: s._id,
-    displayName: s.displayName,
-    ...studentAdminFields(s),
-    submissionsToday: mapToObj(s.snapshot.calendar)[today] || 0,
-    streak: s.snapshot.streak,
-  }));
+  const dailyReport = enriched.map((s) => {
+    const problemsSolvedToday = countUniqueSolvesOnDate(s, today);
+    return {
+      studentId: s._id,
+      displayName: s.displayName,
+      ...studentAdminFields(s),
+      // Unique problems solved today (not calendar submission count)
+      submissionsToday: problemsSolvedToday,
+      problemsSolvedToday,
+      streak: s.snapshot.streak,
+    };
+  });
 
   const batchProgress = {
     avgSolved:
@@ -592,7 +597,7 @@ const getTeacherInsights = async (studentsWithSnaps) => {
         ? Math.round(valid.reduce((s, e) => s + e.snapshot.totalSolved, 0) / valid.length)
         : 0,
     avgMastery: avgMasteryClass,
-    activeToday: dailyReport.filter((d) => d.submissionsToday > 0).length,
+    activeToday: dailyReport.filter((d) => d.problemsSolvedToday > 0).length,
     totalStudents: studentsWithSnaps.length,
   };
 

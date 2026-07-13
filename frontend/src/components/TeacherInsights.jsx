@@ -365,7 +365,7 @@ export default function TeacherInsights({ insights, classroomSlug }) {
       <AdminSection
         eyebrow="Today"
         title="Daily activity report"
-        subtitle={`${batchProgress?.activeToday ?? 0} of ${batchProgress?.totalStudents ?? 0} submitted today`}
+        subtitle={`${batchProgress?.activeToday ?? 0} of ${batchProgress?.totalStudents ?? 0} solved a problem today`}
         accent="sky"
         delay={0.08}
         noPadding

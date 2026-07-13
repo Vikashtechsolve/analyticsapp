@@ -1,5 +1,10 @@
 const { Classroom, Division, Student, StudentSnapshot } = require('../models');
-const { mapToObj, getDateRange, sumCalendarRange } = require('./analytics.utils');
+const {
+  mapToObj,
+  getDateRange,
+  sumCalendarRange,
+  countUniqueSolvesOnDate,
+} = require('./analytics.utils');
 const {
   buildStudentAnalytics,
   getTeacherInsights,
@@ -41,7 +46,8 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
   studentsWithSnaps
     .filter((s) => s.snapshot && !s.snapshot.syncError)
     .map((s) => {
-      const todaySolved = mapToObj(s.snapshot.calendar)[today] || 0;
+      // Count unique problems solved today — not calendar submissions
+      const todaySolved = countUniqueSolvesOnDate(s, today);
       return {
         studentId: s._id,
         displayName: s.displayName,
@@ -50,6 +56,7 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
         todaySolved,
         totalSolved: s.snapshot.totalSolved || 0,
         streak: s.snapshot.streak || 0,
+        weeklyActivity: sumCalendarRange(s.snapshot.calendar, 7),
       };
     })
     .filter((s) => s.todaySolved > 0)
@@ -61,10 +68,10 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
 const SNAPSHOT_LIST_FIELDS =
-  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown acceptanceRate';
+  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown acceptanceRate recentSolves';
 
 const STUDENT_LIST_FIELDS =
-  'displayName leetcodeUsername divisionId latestSnapshotId status enrollmentNumber institute email mobile academicDepartment graduationYear';
+  'displayName leetcodeUsername divisionId latestSnapshotId status enrollmentNumber institute email mobile academicDepartment graduationYear dailySolveLog';
 
 const attachSnapshots = async (students, select = SNAPSHOT_LIST_FIELDS) => {
   const snapshotIds = students.map((s) => s.latestSnapshotId).filter(Boolean);
@@ -210,8 +217,10 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
   const validSnaps = snapshots.filter((s) => !s?.syncError);
 
   const today = new Date().toISOString().slice(0, 10);
-  const activeToday = validSnaps.filter((s) => mapToObj(s.calendar)[today] > 0).length;
   const todayTopPerformers = buildTodayTopPerformers(students, today);
+  const activeToday = students.filter(
+    (s) => s.snapshot && !s.snapshot.syncError && countUniqueSolvesOnDate(s, today) > 0
+  ).length;
 
   const avgSolved =
     validSnaps.length > 0
@@ -307,7 +316,9 @@ const buildDivisionComparison = (allStudents, divisions) => {
       validSnaps.length > 0
         ? Math.round(validSnaps.reduce((sum, s) => sum + (s.streak || 0), 0) / validSnaps.length)
         : 0;
-    const activeToday = validSnaps.filter((s) => mapToObj(s.calendar)[today] > 0).length;
+    const activeToday = divStudents.filter(
+      (s) => s.snapshot && !s.snapshot.syncError && countUniqueSolvesOnDate(s, today) > 0
+    ).length;
 
     return {
       divisionId: div._id,
