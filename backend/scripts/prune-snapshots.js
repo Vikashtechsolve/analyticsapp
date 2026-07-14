@@ -9,6 +9,7 @@
  *   SNAPSHOT_MAX_PER_STUDENT=45
  */
 require('dotenv').config();
+const mongoose = require('mongoose');
 const connectDB = require('../src/config/db');
 const { pruneAllSnapshots } = require('../src/services/snapshot-retention.service');
 const { StudentSnapshot } = require('../src/models');
@@ -27,11 +28,17 @@ const main = async () => {
   console.log(
     `Retention: ${result.retentionDays} days, max ${result.maxPerStudent} per student`
   );
-  console.log('Done. Consider compacting your MongoDB volume if using Atlas Free tier.');
+  console.log('Done. Atlas Free may still show high used space until storage compact/redeploy.');
+  await mongoose.disconnect();
   process.exit(0);
 };
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error('Prune failed:', err);
+  try {
+    await mongoose.disconnect();
+  } catch (_) {
+    /* ignore */
+  }
   process.exit(1);
 });

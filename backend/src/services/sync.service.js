@@ -116,9 +116,19 @@ const syncStudent = async (studentId) => {
       student._id,
       err.message || 'Sync failed'
     );
-    student.latestSnapshotId = snapshot._id;
-    await student.save();
-    await pruneStudentSnapshots(student._id, snapshot._id);
+
+    // Don't replace a healthy latest snapshot with an error-only doc
+    const currentLatest = student.latestSnapshotId
+      ? await StudentSnapshot.findById(student.latestSnapshotId).select('syncError').lean()
+      : null;
+    const latestIsHealthy = currentLatest && !currentLatest.syncError;
+
+    if (!latestIsHealthy) {
+      student.latestSnapshotId = snapshot._id;
+      await student.save();
+    }
+
+    await pruneStudentSnapshots(student._id, student.latestSnapshotId);
     return snapshot;
   }
 };

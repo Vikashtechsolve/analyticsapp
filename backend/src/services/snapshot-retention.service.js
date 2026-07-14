@@ -7,49 +7,63 @@ const maxPerStudent = () =>
   Math.max(7, parseInt(process.env.SNAPSHOT_MAX_PER_STUDENT, 10) || 45);
 
 const utcDayBounds = (date = new Date()) => {
-  const start = new Date(date);
-  start.setUTCHours(0, 0, 0, 0);
-  const end = new Date(date);
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const end = new Date(start);
   end.setUTCHours(23, 59, 59, 999);
   return { start, end };
 };
 
+const isErrorSnap = (doc) => Boolean(doc?.syncError);
+
 /**
  * Save at most one successful snapshot per UTC day (update in place).
- * Prevents 4–6 full copies/day when the sync cron runs repeatedly.
+ * Also removes any other same-day successful duplicates (leftover from old behavior).
  */
 const upsertSuccessfulSnapshot = async (studentId, payload) => {
   const { start, end } = utcDayBounds();
+
   const existing = await StudentSnapshot.findOne({
     studentId,
     syncedAt: { $gte: start, $lte: end },
     $or: [{ syncError: { $exists: false } }, { syncError: null }, { syncError: '' }],
   }).sort({ syncedAt: -1 });
 
+  let snapshot;
   if (existing) {
-    existing.set({
+    snapshot = await StudentSnapshot.findByIdAndUpdate(
+      existing._id,
+      {
+        $set: {
+          ...payload,
+          syncedAt: new Date(),
+        },
+        $unset: { syncError: 1 },
+      },
+      { new: true }
+    );
+  } else {
+    snapshot = await StudentSnapshot.create({
+      studentId,
       ...payload,
       syncedAt: new Date(),
     });
-    existing.markModified('calendar');
-    existing.markModified('recentSolves');
-    existing.markModified('topicBreakdown');
-    existing.markModified('tagStats');
-    await existing.save();
-    await StudentSnapshot.updateOne({ _id: existing._id }, { $unset: { syncError: 1 } });
-    existing.syncError = undefined;
-    return existing;
   }
 
-  return StudentSnapshot.create({
+  // Remove leftover same-day successful copies (pre-fix bloat / race)
+  await StudentSnapshot.deleteMany({
     studentId,
-    ...payload,
-    syncedAt: new Date(),
+    _id: { $ne: snapshot._id },
+    syncedAt: { $gte: start, $lte: end },
+    $or: [{ syncError: { $exists: false } }, { syncError: null }, { syncError: '' }],
   });
+
+  return snapshot;
 };
 
 /**
- * Keep only the latest error snapshot for a student (or update today's).
+ * Record a sync failure without destroying a good latest snapshot when possible.
+ * - Reuses today's error doc if present
+ * - Otherwise creates one, but does not replace a healthy latest pointer (caller decides)
  */
 const upsertErrorSnapshot = async (studentId, message) => {
   const { start, end } = utcDayBounds();
@@ -74,8 +88,8 @@ const upsertErrorSnapshot = async (studentId, message) => {
 };
 
 /**
- * Delete old snapshots for one student. Always keeps latestSnapshotId.
- * Retention = last N days, capped at max docs per student.
+ * Delete old / excess snapshots for one student. Always keeps latestSnapshotId.
+ * Prefers dropping error snapshots and same-day duplicates first.
  */
 const pruneStudentSnapshots = async (studentId, latestSnapshotId = null) => {
   const days = retentionDays();
@@ -83,40 +97,78 @@ const pruneStudentSnapshots = async (studentId, latestSnapshotId = null) => {
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - days);
 
-  const keepIds = new Set();
-  if (latestSnapshotId) keepIds.add(String(latestSnapshotId));
+  let deleted = 0;
+  const keepLatest = latestSnapshotId ? String(latestSnapshotId) : null;
 
-  // Age-based prune (never delete the pointer snapshot)
+  // 1) Age prune (never delete the pointer snapshot)
   const ageFilter = {
     studentId,
     syncedAt: { $lt: cutoff },
   };
-  if (latestSnapshotId) ageFilter._id = { $ne: latestSnapshotId };
+  if (keepLatest) ageFilter._id = { $ne: latestSnapshotId };
   const ageResult = await StudentSnapshot.deleteMany(ageFilter);
+  deleted += ageResult.deletedCount || 0;
 
-  // Cap remaining count
+  // 2) Drop all error snapshots except if it is the latest pointer
+  const errorFilter = {
+    studentId,
+    syncError: { $exists: true, $nin: [null, ''] },
+  };
+  if (keepLatest) errorFilter._id = { $ne: latestSnapshotId };
+  const errorResult = await StudentSnapshot.deleteMany(errorFilter);
+  deleted += errorResult.deletedCount || 0;
+
+  // 3) Collapse same-calendar-day successful duplicates (keep newest per day)
   const remaining = await StudentSnapshot.find({ studentId })
+    .sort({ syncedAt: -1 })
+    .select('_id syncedAt syncError')
+    .lean();
+
+  const seenDays = new Set();
+  const duplicateIds = [];
+  for (const doc of remaining) {
+    if (keepLatest && String(doc._id) === keepLatest) {
+      const dayKey = new Date(doc.syncedAt).toISOString().slice(0, 10);
+      seenDays.add(dayKey);
+      continue;
+    }
+    if (isErrorSnap(doc)) continue;
+    const dayKey = new Date(doc.syncedAt).toISOString().slice(0, 10);
+    if (seenDays.has(dayKey)) {
+      duplicateIds.push(doc._id);
+    } else {
+      seenDays.add(dayKey);
+    }
+  }
+  if (duplicateIds.length) {
+    const dupResult = await StudentSnapshot.deleteMany({ _id: { $in: duplicateIds } });
+    deleted += dupResult.deletedCount || 0;
+  }
+
+  // 4) Cap total count (keep newest + always latest pointer)
+  const afterDedup = await StudentSnapshot.find({ studentId })
     .sort({ syncedAt: -1 })
     .select('_id')
     .lean();
 
-  for (const doc of remaining.slice(0, maxKeep)) {
+  const keepIds = new Set();
+  if (keepLatest) keepIds.add(keepLatest);
+  for (const doc of afterDedup.slice(0, maxKeep)) {
     keepIds.add(String(doc._id));
   }
 
-  const overflowIds = remaining
+  const overflowIds = afterDedup
     .filter((doc) => !keepIds.has(String(doc._id)))
     .map((doc) => doc._id);
 
-  let overflowDeleted = 0;
   if (overflowIds.length) {
     const overflowResult = await StudentSnapshot.deleteMany({ _id: { $in: overflowIds } });
-    overflowDeleted = overflowResult.deletedCount || 0;
+    deleted += overflowResult.deletedCount || 0;
   }
 
   return {
-    deleted: (ageResult.deletedCount || 0) + overflowDeleted,
-    kept: Math.min(remaining.length, maxKeep),
+    deleted,
+    kept: Math.min(afterDedup.length, maxKeep),
   };
 };
 
@@ -134,15 +186,11 @@ const pruneAllSnapshots = async () => {
     processed += 1;
   }
 
-  // Orphan snapshots (student deleted / no owner pointer needed cleanup)
-  const orphanCutoff = new Date();
-  orphanCutoff.setUTCDate(orphanCutoff.getUTCDate() - retentionDays());
+  // Delete orphan snapshots whose student no longer exists
   const studentIds = students.map((s) => s._id);
   const orphanResult = await StudentSnapshot.deleteMany({
     studentId: { $nin: studentIds },
-    syncedAt: { $lt: orphanCutoff },
   });
-
   deleted += orphanResult.deletedCount || 0;
 
   return {
