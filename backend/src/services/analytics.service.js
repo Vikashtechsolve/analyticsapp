@@ -376,7 +376,7 @@ const getStudentDetail = async (studentId) => {
       totalSolved: { $exists: true },
     })
       .sort({ syncedAt: 1 })
-      .limit(90)
+      .limit(45)
       .select('syncedAt totalSolved easy medium hard streak')
       .lean(),
     getStudentsWithSnapshots(classroomId, null),

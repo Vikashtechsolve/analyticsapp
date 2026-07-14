@@ -6,6 +6,11 @@ const {
   calculateTopicMastery,
 } = require('./student-analytics.service');
 const { ensureProblemsCached } = require('./problem-cache.service');
+const {
+  upsertSuccessfulSnapshot,
+  upsertErrorSnapshot,
+  pruneStudentSnapshots,
+} = require('./snapshot-retention.service');
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -75,8 +80,8 @@ const syncStudent = async (studentId) => {
       return { ...t, mastery: m?.mastery || 0 };
     });
 
-    const snapshot = await StudentSnapshot.create({
-      studentId: student._id,
+    // One full snapshot per UTC day (updates in place) — stops unbounded growth
+    const snapshot = await upsertSuccessfulSnapshot(student._id, {
       totalSolved: data.totalSolved,
       easy: data.easy,
       medium: data.medium,
@@ -102,14 +107,18 @@ const syncStudent = async (studentId) => {
     student.latestSnapshotId = snapshot._id;
     await student.save();
 
+    // Drop old historical snapshots beyond retention
+    await pruneStudentSnapshots(student._id, snapshot._id);
+
     return snapshot;
   } catch (err) {
-    const snapshot = await StudentSnapshot.create({
-      studentId: student._id,
-      syncError: err.message || 'Sync failed',
-    });
+    const snapshot = await upsertErrorSnapshot(
+      student._id,
+      err.message || 'Sync failed'
+    );
     student.latestSnapshotId = snapshot._id;
     await student.save();
+    await pruneStudentSnapshots(student._id, snapshot._id);
     return snapshot;
   }
 };

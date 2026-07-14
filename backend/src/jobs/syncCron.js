@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { syncAllActiveStudents, syncProblemCache } = require('../services/sync.service');
+const { pruneAllSnapshots } = require('../services/snapshot-retention.service');
 
 const startSyncCron = () => {
   const hours = parseInt(process.env.SYNC_INTERVAL_HOURS, 10) || 6;
@@ -22,6 +23,19 @@ const startSyncCron = () => {
       console.log(`[cron] Cached ${result.cached} problems`);
     } catch (err) {
       console.error('[cron] Problem cache sync failed:', err.message);
+    }
+  });
+
+  // Nightly cleanup of old snapshot history (reclaims disk)
+  cron.schedule('30 2 * * *', async () => {
+    console.log('[cron] Pruning old student snapshots...');
+    try {
+      const result = await pruneAllSnapshots();
+      console.log(
+        `[cron] Snapshot prune: deleted ${result.deleted} (kept ≤${result.maxPerStudent}/student, ${result.retentionDays}d)`
+      );
+    } catch (err) {
+      console.error('[cron] Snapshot prune failed:', err.message);
     }
   });
 

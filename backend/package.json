@@ -4,7 +4,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node ./node_modules/nodemon/bin/nodemon.js src/server.js"
+    "dev": "node ./node_modules/nodemon/bin/nodemon.js src/server.js",
+    "prune-snapshots": "node scripts/prune-snapshots.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
