@@ -66,9 +66,9 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
-/** Lean fields for public classroom / leaderboard pages (no full-year calendar / recentSolves). */
+/** Lean fields for public classroom / leaderboard pages (no full-year calendar). */
 const SNAPSHOT_LIST_FIELDS =
-  'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30';
+  'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30 recentSolves';
 
 /** Minimal fields for ranking classmates (profile page). */
 const SNAPSHOT_RANK_FIELDS =

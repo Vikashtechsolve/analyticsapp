@@ -21,5 +21,16 @@ export default defineConfig(({ mode }) => {
       port: Number(env.VITE_PREVIEW_PORT) || 4173,
       host: true,
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            react: ['react', 'react-dom', 'react-router-dom'],
+            recharts: ['recharts'],
+            axios: ['axios'],
+          },
+        },
+      },
+    },
   };
 });

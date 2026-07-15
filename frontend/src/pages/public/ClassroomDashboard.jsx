@@ -1,16 +1,20 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { publicApi } from '../../api/client';
 import Leaderboard from '../../components/Leaderboard';
 import TopPerformersPodium from '../../components/TopPerformersPodium';
-import DailyActivityChart from '../../components/DailyActivityChart';
-import TopicChart from '../../components/TopicChart';
-import DivisionComparison from '../../components/DivisionComparison';
-import InactiveStudents from '../../components/InactiveStudents';
 import DashboardToolbar from '../../components/dashboard/DashboardToolbar';
 import DashboardSection from '../../components/dashboard/DashboardSection';
 import DashboardSkeleton from '../../components/dashboard/DashboardSkeleton';
 import DashboardContentSkeleton from '../../components/dashboard/DashboardContentSkeleton';
+import { Skeleton } from '../../components/ui/Skeleton';
+
+const DailyActivityChart = lazy(() => import('../../components/DailyActivityChart'));
+const TopicChart = lazy(() => import('../../components/TopicChart'));
+const DivisionComparison = lazy(() => import('../../components/DivisionComparison'));
+const InactiveStudents = lazy(() => import('../../components/InactiveStudents'));
+
+const ChartFallback = () => <Skeleton className="h-64 w-full rounded-2xl" />;
 
 const sortLeaderboard = (items, sortBy) => {
   const sorters = {
@@ -39,58 +43,56 @@ const sortLeaderboard = (items, sortBy) => {
   });
 };
 
+/** Today list — prefer todayTopPerformers, else filter full leaderboard. */
+const todaySourceList = (analytics) => {
+  const tops = analytics.todayTopPerformers || [];
+  if (tops.length) return tops;
+  return (analytics.leaderboard || []).filter((r) => (r.todaySolved || 0) > 0);
+};
+
 export default function ClassroomDashboard() {
   const { slug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const divisionSlug = searchParams.get('division') || '';
+  const prevSlugRef = useRef(slug);
 
   const [meta, setMeta] = useState(null);
   const [analytics, setAnalytics] = useState(null);
-  const [metaLoading, setMetaLoading] = useState(true);
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Default Today (same as before) — backend must resolve today counts reliably in prod
   const [sortBy, setSortBy] = useState('todaySolved');
 
   useEffect(() => {
     let cancelled = false;
-    const loadMeta = async () => {
-      setMetaLoading(true);
-      setError('');
-      try {
-        const metaRes = await publicApi.classroom(slug);
-        if (!cancelled) setMeta(metaRes.data);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.response?.data?.message || 'Failed to load classroom');
-          setMeta(null);
-        }
-      } finally {
-        if (!cancelled) setMetaLoading(false);
-      }
-    };
-    loadMeta();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
+    const slugChanged = prevSlugRef.current !== slug;
+    prevSlugRef.current = slug;
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadAnalytics = async () => {
-      setAnalyticsLoading(true);
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      setAnalytics(null);
+      if (slugChanged) setMeta(null);
+
       try {
-        const analyticsRes = await publicApi.analytics(slug, divisionSlug || undefined);
-        if (!cancelled) setAnalytics(analyticsRes.data);
+        const [metaRes, analyticsRes] = await Promise.all([
+          publicApi.classroom(slug),
+          publicApi.analytics(slug, divisionSlug || undefined),
+        ]);
+        if (cancelled) return;
+        setMeta(metaRes.data);
+        setAnalytics(analyticsRes.data);
       } catch (err) {
-        if (!cancelled) {
-          setError(err.response?.data?.message || 'Failed to load analytics');
-          setAnalytics(null);
-        }
+        if (cancelled) return;
+        setError(err.response?.data?.message || 'Failed to load classroom');
+        if (slugChanged) setMeta(null);
+        setAnalytics(null);
       } finally {
-        if (!cancelled) setAnalyticsLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-    loadAnalytics();
+
+    load();
     return () => {
       cancelled = true;
     };
@@ -98,14 +100,13 @@ export default function ClassroomDashboard() {
 
   const leaderboard = useMemo(() => {
     if (!analytics) return [];
-    const source =
-      sortBy === 'todaySolved'
-        ? analytics.todayTopPerformers || []
-        : analytics.leaderboard || [];
-    return sortLeaderboard(source, sortBy);
+    if (sortBy === 'todaySolved') {
+      return sortLeaderboard(todaySourceList(analytics), 'todaySolved');
+    }
+    return sortLeaderboard(analytics.leaderboard || [], sortBy);
   }, [analytics, sortBy]);
 
-  if (metaLoading) return <DashboardSkeleton />;
+  if (loading && !meta) return <DashboardSkeleton />;
 
   if (error && !meta) {
     return (
@@ -150,7 +151,7 @@ export default function ClassroomDashboard() {
       />
 
       <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 space-y-5">
-        {analyticsLoading ? (
+        {!analytics ? (
           <DashboardContentSkeleton />
         ) : error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-center">
@@ -176,7 +177,7 @@ export default function ClassroomDashboard() {
                 }
                 emptyMessage={
                   sortBy === 'todaySolved'
-                    ? 'Students who solve problems today will appear here. Use All or a division filter above.'
+                    ? 'Students who solve problems today will appear here. Switch to Overall to see full rankings.'
                     : 'Sync the classroom to reveal top performers.'
                 }
               />
@@ -191,31 +192,33 @@ export default function ClassroomDashboard() {
               limit={sortBy === 'todaySolved' ? 10 : undefined}
             />
 
-            <DashboardSection
-              eyebrow="Momentum"
-              title="Activity & progress"
-              description="Daily submissions and topic coverage across the classroom."
-              delay={0.15}
-              id="activity"
-            >
-              <DailyActivityChart data={analytics.dailyActivity} />
-
-              <div
-                className={`grid gap-5 items-stretch ${
-                  analytics.divisionComparison?.length ? 'lg:grid-cols-2' : 'grid-cols-1'
-                }`}
+            <Suspense fallback={<ChartFallback />}>
+              <DashboardSection
+                eyebrow="Momentum"
+                title="Activity & progress"
+                description="Daily submissions and topic coverage across the classroom."
+                delay={0.15}
+                id="activity"
               >
-                <TopicChart topics={analytics.topics} />
-                {analytics.divisionComparison?.length > 0 && (
-                  <DivisionComparison
-                    data={analytics.divisionComparison}
-                    classroomSlug={slug}
-                  />
-                )}
-              </div>
-            </DashboardSection>
+                <DailyActivityChart data={analytics.dailyActivity} />
 
-            <InactiveStudents students={analytics.inactiveStudents} />
+                <div
+                  className={`grid gap-5 items-stretch ${
+                    analytics.divisionComparison?.length ? 'lg:grid-cols-2' : 'grid-cols-1'
+                  }`}
+                >
+                  <TopicChart topics={analytics.topics} />
+                  {analytics.divisionComparison?.length > 0 && (
+                    <DivisionComparison
+                      data={analytics.divisionComparison}
+                      classroomSlug={slug}
+                    />
+                  )}
+                </div>
+              </DashboardSection>
+
+              <InactiveStudents students={analytics.inactiveStudents} />
+            </Suspense>
           </>
         )}
       </main>

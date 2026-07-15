@@ -61,19 +61,41 @@ const snapScore = (snap) => {
 };
 
 /**
- * Hot-path today count for classroom lists / leaderboards.
- * Uses only precomputed snapshot fields — O(1), never scans solve arrays.
- * Returns 0 when the cached date is stale (until the next sync).
+ * Unique solves on a date from recent AC list only (no dailySolveLog).
+ * Used as a hot-path fallback when precomputed today fields are stale.
+ */
+const uniqueFromRecentSolves = (recentSolves, date, timeZone = appTimeZone()) => {
+  if (!recentSolves?.length) return 0;
+  const slugs = new Set();
+  for (const solve of recentSolves) {
+    if (!solve?.slug || !solve.timestamp) continue;
+    const solvedDate = toLocalDateString(new Date(Number(solve.timestamp) * 1000), timeZone);
+    if (solvedDate === date) slugs.add(String(solve.slug).toLowerCase());
+  }
+  return slugs.size;
+};
+
+/**
+ * Today count for classroom lists / leaderboards.
+ * 1) Precomputed fields (fast, accurate after sync)
+ * 2) recentSolves unique count (works even if last sync was yesterday)
+ * 3) calendar30 submissions that day (last resort so deploy never shows empty wrongly)
  */
 const todaySolvedOf = (snap, date = todayLocal()) => {
   if (!snap || snap.syncError) return 0;
+
   if (
     snap.problemsSolvedTodayDate === date &&
     typeof snap.problemsSolvedToday === 'number'
   ) {
     return snap.problemsSolvedToday;
   }
-  return 0;
+
+  const fromRecent = uniqueFromRecentSolves(snap.recentSolves, date);
+  if (fromRecent > 0) return fromRecent;
+
+  const cal = mapToObj(snap.calendar30 || snap.calendar);
+  return Number(cal[date] || 0);
 };
 
 /**
