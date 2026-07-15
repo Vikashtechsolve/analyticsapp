@@ -69,14 +69,25 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
 const SNAPSHOT_LIST_FIELDS =
   'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30 recentSolves';
 
-/** Richer fields for teacher dashboards (still avoids unused junk when possible). */
+/** Minimal fields for ranking classmates (profile page). */
+const SNAPSHOT_RANK_FIELDS =
+  'totalSolved streak weeklyActivity score problemsSolvedToday problemsSolvedTodayDate contestRating syncError easy medium hard';
+
+/** Teacher insights — tagStats for mastery, no full calendar / solve logs. */
 const SNAPSHOT_TEACHER_FIELDS =
-  `${SNAPSHOT_LIST_FIELDS} tagStats acceptanceRate totalSubmissions calendar`;
+  `${SNAPSHOT_LIST_FIELDS} tagStats acceptanceRate totalSubmissions`;
+
+/** Teacher filters that need calendar/solve history (loaded only when required). */
+const SNAPSHOT_TEACHER_FILTER_FIELDS =
+  `${SNAPSHOT_TEACHER_FIELDS} calendar`;
 
 const STUDENT_LIST_FIELDS =
+  'displayName leetcodeUsername divisionId latestSnapshotId status';
+
+const STUDENT_TEACHER_FIELDS =
   'displayName leetcodeUsername divisionId latestSnapshotId status enrollmentNumber institute email mobile academicDepartment graduationYear';
 
-const STUDENT_TEACHER_FIELDS = `${STUDENT_LIST_FIELDS} dailySolveLog problemProgress`;
+const STUDENT_TEACHER_FILTER_FIELDS = `${STUDENT_TEACHER_FIELDS} dailySolveLog`;
 
 const attachSnapshots = async (students, select = SNAPSHOT_LIST_FIELDS) => {
   const snapshotIds = students.map((s) => s.latestSnapshotId).filter(Boolean);
@@ -368,7 +379,7 @@ const STUDENT_PROFILE_FIELDS =
   'displayName leetcodeUsername divisionId classroomId dailySolveLog problemProgress institute email mobile enrollmentNumber academicDepartment graduationYear status latestSnapshotId';
 
 const SNAPSHOT_PROFILE_FIELDS =
-  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown tagStats acceptanceRate totalSubmissions recentSolves problemsSolvedToday problemsSolvedTodayDate';
+  'totalSolved easy medium hard streak calendar calendar30 contestRating syncError syncedAt topicBreakdown tagStats acceptanceRate totalSubmissions recentSolves problemsSolvedToday problemsSolvedTodayDate weeklyActivity score';
 
 const getStudentDetail = async (studentId) => {
   const student = await Student.findById(studentId)
@@ -380,7 +391,7 @@ const getStudentDetail = async (studentId) => {
 
   const classroomId = student.classroomId?._id || student.classroomId;
 
-  const [snapshot, history, allStudents] = await Promise.all([
+  const [snapshot, history, classmates] = await Promise.all([
     student.latestSnapshotId
       ? StudentSnapshot.findById(student.latestSnapshotId).select(SNAPSHOT_PROFILE_FIELDS).lean()
       : null,
@@ -393,16 +404,25 @@ const getStudentDetail = async (studentId) => {
       .limit(45)
       .select('syncedAt totalSolved easy medium hard streak')
       .lean(),
-    getStudentsWithSnapshots(classroomId, null),
+    // Slim ranking-only load (not full calendars / topics)
+    getStudentsWithSnapshots(classroomId, null, {
+      snapshotSelect: SNAPSHOT_RANK_FIELDS,
+      studentSelect: 'displayName leetcodeUsername divisionId latestSnapshotId',
+    }),
   ]);
 
   let analytics = null;
+  let safeSnapshot = null;
   if (snapshot) {
     snapshot.calendar = mapToObj(snapshot.calendar);
+    if (snapshot.calendar30) snapshot.calendar30 = mapToObj(snapshot.calendar30);
     analytics = await buildStudentAnalytics(student, snapshot);
+    // Drop heavy fields already folded into analytics / unused on the profile wire
+    const { tagStats: _tagStats, calendar30: _c30, ...rest } = snapshot;
+    safeSnapshot = rest;
   }
 
-  const rankings = buildStudentRankings(allStudents);
+  const rankings = buildStudentRankings(classmates);
   const rankingByMetric = {};
   for (const metric of RANK_METRICS) {
     rankingByMetric[metric] = getStudentRank(
@@ -413,9 +433,12 @@ const getStudentDetail = async (studentId) => {
     );
   }
 
+  // Strip heavy raw arrays from wire response (analytics already computed)
+  const { dailySolveLog: _log, problemProgress: _prog, ...safeStudent } = student;
+
   return {
-    student,
-    snapshot,
+    student: safeStudent,
+    snapshot: safeSnapshot,
     history,
     analytics,
     ranking: {
@@ -439,6 +462,9 @@ module.exports = {
   sumCalendarRange,
   SNAPSHOT_LIST_FIELDS,
   SNAPSHOT_TEACHER_FIELDS,
+  SNAPSHOT_TEACHER_FILTER_FIELDS,
+  SNAPSHOT_RANK_FIELDS,
   STUDENT_LIST_FIELDS,
   STUDENT_TEACHER_FIELDS,
+  STUDENT_TEACHER_FILTER_FIELDS,
 };

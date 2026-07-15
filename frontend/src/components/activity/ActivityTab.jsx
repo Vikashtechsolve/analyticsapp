@@ -1,10 +1,10 @@
 import ActivityHeatmap from '../ActivityHeatmap';
 import ProgressChart from '../profile/ProgressChart';
 import ProfileSection from '../profile/ProfileSection';
-import { sumCalendarDays } from '../profile/overview/overviewUtils';
+import { weeklyActivityOf } from '../profile/overview/overviewUtils';
 
 export default function ActivityTab({ snapshot, history }) {
-  const weekly = sumCalendarDays(snapshot?.calendar, 7);
+  const weekly = weeklyActivityOf(snapshot);
   const streak = snapshot?.streak ?? 0;
   const hasHistory = history?.length > 1;
 

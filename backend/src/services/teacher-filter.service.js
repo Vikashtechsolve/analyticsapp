@@ -3,9 +3,11 @@ const {
   getStudentsWithSnapshots,
   buildStudentRankings,
   SNAPSHOT_TEACHER_FIELDS,
+  SNAPSHOT_TEACHER_FILTER_FIELDS,
   STUDENT_TEACHER_FIELDS,
+  STUDENT_TEACHER_FILTER_FIELDS,
 } = require('./analytics.service');
-const { buildStudentAnalytics } = require('./student-analytics.service');
+const { quickAnalyticsFromSnapshot } = require('./student-analytics.service');
 
 const PERIOD_DAYS = { week: 7, month: 30 };
 
@@ -44,10 +46,12 @@ const countSolvesInPeriod = (student, periodDays) => {
   };
 };
 
-const buildStudentMetrics = async (student, snapshot) => {
-  const analytics = snapshot && !snapshot.syncError
-    ? await buildStudentAnalytics(student, snapshot)
-    : { avgMastery: 0, topicMastery: [] };
+/** Sync metrics from precomputed snapshot fields (no heavy progress rebuild). */
+const buildStudentMetrics = (student, snapshot) => {
+  const analytics =
+    snapshot && !snapshot.syncError
+      ? quickAnalyticsFromSnapshot(snapshot)
+      : { avgMastery: 0, topicMastery: [] };
 
   const weeklyActivity = snapshot ? snapWeeklyActivity(snapshot) : 0;
   const monthlyActivity = snapshot
@@ -123,7 +127,9 @@ const evaluateFilter = (filterKey, config, metrics, classAvgs) => {
       const match = metrics.streak < below;
       return {
         match,
-        reason: match ? `Streak ${metrics.streak} day${metrics.streak !== 1 ? 's' : ''} (below ${below})` : null,
+        reason: match
+          ? `Streak ${metrics.streak} day${metrics.streak !== 1 ? 's' : ''} (below ${below})`
+          : null,
         detail: { streak: metrics.streak, below },
       };
     }
@@ -181,6 +187,19 @@ const evaluateFilter = (filterKey, config, metrics, classAvgs) => {
   }
 };
 
+const selectFieldsForFilters = (filters) => {
+  const needsSolveLog = Boolean(filters?.lowSolvesInPeriod?.enabled);
+  const needsFullCalendar =
+    Boolean(filters?.inactive?.enabled) || Boolean(filters?.noRecentActivity?.enabled);
+
+  return {
+    snapshotSelect: needsFullCalendar
+      ? SNAPSHOT_TEACHER_FILTER_FIELDS
+      : SNAPSHOT_TEACHER_FIELDS,
+    studentSelect: needsSolveLog ? STUDENT_TEACHER_FILTER_FIELDS : STUDENT_TEACHER_FIELDS,
+  };
+};
+
 const filterStudentsForTeacher = async (classroomId, options = {}) => {
   const {
     divisionId = null,
@@ -189,9 +208,11 @@ const filterStudentsForTeacher = async (classroomId, options = {}) => {
     search = '',
   } = options;
 
+  const { snapshotSelect, studentSelect } = selectFieldsForFilters(filters);
+
   const allStudents = await getStudentsWithSnapshots(classroomId, null, {
-    snapshotSelect: SNAPSHOT_TEACHER_FIELDS,
-    studentSelect: STUDENT_TEACHER_FIELDS,
+    snapshotSelect,
+    studentSelect,
   });
   const rankings = buildStudentRankings(allStudents);
 
@@ -211,42 +232,6 @@ const filterStudentsForTeacher = async (classroomId, options = {}) => {
     };
   }
 
-  const validForAvg = pool.filter((s) => s.snapshot && !s.snapshot.syncError);
-  const classAvgs = {
-    totalSolved:
-      validForAvg.length > 0
-        ? Math.round(
-            validForAvg.reduce((s, e) => s + (e.snapshot.totalSolved || 0), 0) / validForAvg.length
-          )
-        : 0,
-    avgMastery: 0,
-    weeklyActivity:
-      validForAvg.length > 0
-        ? Math.round(
-            validForAvg.reduce((s, e) => s + snapWeeklyActivity(e.snapshot), 0) /
-              validForAvg.length
-          )
-        : 0,
-    streak:
-      validForAvg.length > 0
-        ? Math.round(
-            validForAvg.reduce((s, e) => s + (e.snapshot.streak || 0), 0) / validForAvg.length
-          )
-        : 0,
-  };
-
-  if (validForAvg.length > 0) {
-    const masterySum = await Promise.all(
-      validForAvg.map(async (s) => {
-        const a = await buildStudentAnalytics(s, s.snapshot);
-        return a.avgMastery;
-      })
-    );
-    classAvgs.avgMastery = Math.round(
-      masterySum.reduce((a, b) => a + b, 0) / masterySum.length
-    );
-  }
-
   const q = search.trim().toLowerCase();
   if (q) {
     pool = pool.filter(
@@ -261,10 +246,44 @@ const filterStudentsForTeacher = async (classroomId, options = {}) => {
     );
   }
 
+  const poolMetrics = pool.map((student) => ({
+    student,
+    metrics: buildStudentMetrics(student, student.snapshot),
+  }));
+
+  const validForAvg = poolMetrics.filter(
+    (row) => row.student.snapshot && !row.student.snapshot.syncError
+  );
+  const classAvgs = {
+    totalSolved:
+      validForAvg.length > 0
+        ? Math.round(
+            validForAvg.reduce((s, row) => s + row.metrics.totalSolved, 0) / validForAvg.length
+          )
+        : 0,
+    avgMastery:
+      validForAvg.length > 0
+        ? Math.round(
+            validForAvg.reduce((s, row) => s + row.metrics.avgMastery, 0) / validForAvg.length
+          )
+        : 0,
+    weeklyActivity:
+      validForAvg.length > 0
+        ? Math.round(
+            validForAvg.reduce((s, row) => s + row.metrics.weeklyActivity, 0) / validForAvg.length
+          )
+        : 0,
+    streak:
+      validForAvg.length > 0
+        ? Math.round(
+            validForAvg.reduce((s, row) => s + row.metrics.streak, 0) / validForAvg.length
+          )
+        : 0,
+  };
+
   const matched = [];
 
-  for (const student of pool) {
-    const metrics = await buildStudentMetrics(student, student.snapshot);
+  for (const { student, metrics } of poolMetrics) {
     const results = [];
 
     for (const [key, config] of enabledFilters) {
@@ -293,7 +312,11 @@ const filterStudentsForTeacher = async (classroomId, options = {}) => {
       enrollmentNumber: student.enrollmentNumber || '',
       email: student.email || '',
       division: student.divisionId
-        ? { _id: student.divisionId._id, name: student.divisionId.name, slug: student.divisionId.slug }
+        ? {
+            _id: student.divisionId._id,
+            name: student.divisionId.name,
+            slug: student.divisionId.slug,
+          }
         : null,
       metrics: {
         totalSolved: metrics.totalSolved,

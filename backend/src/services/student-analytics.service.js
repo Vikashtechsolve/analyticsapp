@@ -1,5 +1,12 @@
 const { ProblemCache, Student, StudentSnapshot } = require('../models');
-const { sumCalendarRange, mapToObj, countUniqueSolvesOnDate, toLocalDateString, todayLocal, snapWeeklyActivity } = require('./analytics.utils');
+const {
+  mapToObj,
+  countUniqueSolvesOnDate,
+  toLocalDateString,
+  todayLocal,
+  snapWeeklyActivity,
+  snapScore,
+} = require('./analytics.utils');
 
 const DIFF_WEIGHT = { Easy: 1, Medium: 2, Hard: 3 };
 const REVISION_DAYS = [7, 15, 30];
@@ -291,20 +298,23 @@ const quickAnalyticsFromSnapshot = (snapshot) => {
   };
 };
 
+/** Lean class load for compare / peers — no full-year calendar or solve logs. */
+const CLASSROOM_COMPARE_STUDENT_FIELDS =
+  'displayName leetcodeUsername divisionId latestSnapshotId institute email mobile enrollmentNumber academicDepartment';
+
+const CLASSROOM_COMPARE_SNAPSHOT_FIELDS =
+  'totalSolved easy medium hard streak weeklyActivity score calendar30 acceptanceRate tagStats syncError totalSubmissions problemsSolvedToday problemsSolvedTodayDate';
+
 const loadClassroomSnapshots = async (classroomId) => {
   const students = await Student.find({ classroomId, status: 'active' })
-    .select(
-      'displayName leetcodeUsername divisionId latestSnapshotId institute email mobile enrollmentNumber academicDepartment dailySolveLog problemProgress'
-    )
+    .select(CLASSROOM_COMPARE_STUDENT_FIELDS)
     .populate('divisionId', 'name slug')
     .lean();
 
   const snapshotIds = students.map((s) => s.latestSnapshotId).filter(Boolean);
   const snapshots = snapshotIds.length
     ? await StudentSnapshot.find({ _id: { $in: snapshotIds } })
-        .select(
-          'totalSolved easy medium hard streak calendar acceptanceRate tagStats syncError totalSubmissions recentSolves problemsSolvedToday problemsSolvedTodayDate'
-        )
+        .select(CLASSROOM_COMPARE_SNAPSHOT_FIELDS)
         .lean()
     : [];
   const snapById = new Map(snapshots.map((s) => [String(s._id), s]));
@@ -393,17 +403,11 @@ const getStudentComparison = async (studentId, classroomId) => {
   const mine = classData.find((d) => String(d.student._id) === String(studentId));
   if (!mine?.snapshot) return null;
 
-  const myAnalytics = await buildStudentAnalytics(mine.student, mine.snapshot);
+  // tagStats-only mastery — avoids rebuilding problemProgress for every classmate
+  const myAnalytics = quickAnalyticsFromSnapshot(mine.snapshot);
 
-  const masteryFor = (entry) => {
-    if (String(entry.student._id) === String(studentId)) return myAnalytics.avgMastery;
-    return quickAnalyticsFromSnapshot(entry.snapshot).avgMastery;
-  };
-
-  const topicMasteryFor = (entry) => {
-    if (String(entry.student._id) === String(studentId)) return myAnalytics.topicMastery;
-    return quickAnalyticsFromSnapshot(entry.snapshot).topicMastery;
-  };
+  const masteryFor = (entry) => quickAnalyticsFromSnapshot(entry.snapshot).avgMastery;
+  const topicMasteryFor = (entry) => quickAnalyticsFromSnapshot(entry.snapshot).topicMastery;
 
   const classAvgSolved =
     valid.length > 0
@@ -657,16 +661,6 @@ const mergeProblemProgress = async (existing, recentSolves, cacheBySlug = {}) =>
   return buildProblemProgressFromLog(tempLog, existing);
 };
 
-const computeSnapshotScore = (snap) => {
-  if (!snap || snap.syncError) return 0;
-  const weekly = sumCalendarRange(snap.calendar, 7);
-  return (
-    Math.round(
-      ((snap.totalSolved || 0) * 1 + (snap.streak || 0) * 0.5 + weekly * 0.3) * 10
-    ) / 10
-  );
-};
-
 const buildStudentSummary = (entry) => {
   const { student, snapshot, analytics } = entry;
   return {
@@ -678,8 +672,8 @@ const buildStudentSummary = (entry) => {
     totalSolved: snapshot?.totalSolved ?? 0,
     avgMastery: analytics?.avgMastery ?? 0,
     streak: snapshot?.streak ?? 0,
-    weeklyActivity: snapshot ? sumCalendarRange(snapshot.calendar, 7) : 0,
-    score: computeSnapshotScore(snapshot),
+    weeklyActivity: snapshot ? snapWeeklyActivity(snapshot) : 0,
+    score: snapScore(snapshot),
     acceptanceRate: snapshot?.acceptanceRate ?? 0,
     easy: snapshot?.easy ?? 0,
     medium: snapshot?.medium ?? 0,
@@ -705,7 +699,21 @@ const getStudentPeers = async (classroomId, studentId) => {
     .sort((a, b) => b.score - a.score)
     .map((s, i) => ({ ...s, rank: i + 1 }));
 
-  const peers = ranked.filter((p) => String(p.studentId) !== String(studentId));
+  // Public peers list: identity + rank metrics only (no PII)
+  const peers = ranked
+    .filter((p) => String(p.studentId) !== String(studentId))
+    .map(({ studentId: id, displayName, leetcodeUsername, divisionName, totalSolved, avgMastery, streak, score, rank }) => ({
+      studentId: id,
+      displayName,
+      leetcodeUsername,
+      divisionName,
+      totalSolved,
+      avgMastery,
+      streak,
+      score,
+      rank,
+    }));
+
   return { peers, total: ranked.length };
 };
 
@@ -725,8 +733,12 @@ const getStudentPeerComparison = async (studentId, peerId, classroomId) => {
   const you = buildStudentSummary(mine);
   const them = buildStudentSummary(peer);
 
+  // Rank from lean score fields only (avoid rebuilding full summaries for every classmate)
   const ranked = valid
-    .map((d) => buildStudentSummary(d))
+    .map((d) => ({
+      studentId: d.student._id,
+      score: snapScore(d.snapshot),
+    }))
     .sort((a, b) => b.score - a.score);
   const youRank = ranked.findIndex((r) => String(r.studentId) === String(studentId)) + 1;
   const peerRank = ranked.findIndex((r) => String(r.studentId) === String(peerId)) + 1;
@@ -789,6 +801,7 @@ module.exports = {
   getStudentPeers,
   getStudentPeerComparison,
   getTeacherInsights,
+  quickAnalyticsFromSnapshot,
   mergeProblemProgress,
   mergeDailySolveLog,
   buildProblemProgressFromLog,

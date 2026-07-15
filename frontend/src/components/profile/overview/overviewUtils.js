@@ -13,9 +13,16 @@ export const sumCalendarDays = (calendar, days = 7) => {
   return total;
 };
 
+export const weeklyActivityOf = (snapshot) => {
+  if (!snapshot) return 0;
+  if (typeof snapshot.weeklyActivity === 'number') return snapshot.weeklyActivity;
+  return sumCalendarDays(snapshot.calendar, 7);
+};
+
 export const computeScore = (snapshot) => {
   if (!snapshot) return 0;
-  const weekly = sumCalendarDays(snapshot.calendar, 7);
+  if (typeof snapshot.score === 'number' && snapshot.score > 0) return snapshot.score;
+  const weekly = weeklyActivityOf(snapshot);
   return (
     Math.round(
       ((snapshot.totalSolved || 0) * 1 +
@@ -28,7 +35,7 @@ export const computeScore = (snapshot) => {
 
 export const buildOverviewStory = ({ snapshot, analytics, ranking }) => {
   const streak = snapshot?.streak ?? 0;
-  const weekly = sumCalendarDays(snapshot?.calendar, 7);
+  const weekly = weeklyActivityOf(snapshot);
   const mastery = analytics?.avgMastery ?? 0;
   const solved = snapshot?.totalSolved ?? 0;
   const rank = ranking?.primary?.overall?.rank;
