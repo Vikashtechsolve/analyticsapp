@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import { formatContestRating, formatLeaderboardMetric } from '../utils/formatMetrics';
+import { LEADERBOARD_SORT_OPTIONS, LEADERBOARD_SORT_LABELS } from '../utils/leaderboardSort';
 
 const SORT_LABELS = {
+  todaySolved: 'Solved Today',
   score: 'Overall Score',
   totalSolved: 'Problems Solved',
-  todaySolved: 'Solved Today',
   streak: 'Day Streak',
   weeklyActivity: 'Weekly Activity',
   contestRating: 'Contest Rating',
@@ -563,14 +564,7 @@ export default function TopPerformersPodium({
   emptyMessage = 'Sync the classroom to reveal top performers.',
   accent = 'amber',
 }) {
-  const sorts = [
-    { key: 'todaySolved', label: 'Today' },
-    { key: 'score', label: 'Overall' },
-    { key: 'totalSolved', label: 'Solved' },
-    { key: 'streak', label: 'Streak' },
-    { key: 'weeklyActivity', label: 'Weekly' },
-    { key: 'contestRating', label: 'Contest' },
-  ];
+  const sorts = LEADERBOARD_SORT_OPTIONS;
 
   const topN = items.slice(0, maxItems);
   const podiumOrder = [topN[1], topN[0], topN[2]].filter(Boolean);
@@ -585,7 +579,7 @@ export default function TopPerformersPodium({
     rankingScope === 'division' ? activeDivisionName || 'This division' : 'All students';
   const subtitle = isToday
     ? `${leaderToday} by today's leader · ${scopeLabel}`
-    : `Top ${Math.min(maxItems, items.length) || maxItems} · ${SORT_LABELS[sortBy] || 'Score'} · ${scopeLabel}`;
+    : `Top ${Math.min(maxItems, items.length) || maxItems} · ${SORT_LABELS[sortBy] || LEADERBOARD_SORT_LABELS[sortBy] || 'Score'} · ${scopeLabel}`;
 
   const headerGradient = isToday
     ? 'from-emerald-500 to-teal-500 shadow-emerald-200/50'

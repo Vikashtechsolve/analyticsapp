@@ -2,15 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import RankBadge from './RankBadge';
 import { formatLeaderboardMetric } from '../utils/formatMetrics';
-
-const SORT_LABELS = {
-  todaySolved: 'Today',
-  score: 'Overall',
-  totalSolved: 'Solved',
-  streak: 'Streak',
-  weeklyActivity: 'Weekly',
-  contestRating: 'Contest',
-};
+import { LEADERBOARD_SORT_OPTIONS } from '../utils/leaderboardSort';
 
 export default function Leaderboard({
   items,
@@ -21,7 +13,7 @@ export default function Leaderboard({
   limit,
 }) {
   const [search, setSearch] = useState('');
-  const sorts = Object.entries(SORT_LABELS).map(([key, label]) => ({ key, label }));
+  const sorts = LEADERBOARD_SORT_OPTIONS;
   const isDivision = rankingScope === 'division';
   const isTodayView = sortBy === 'todaySolved';
 

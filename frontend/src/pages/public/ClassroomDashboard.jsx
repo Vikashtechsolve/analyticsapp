@@ -8,6 +8,7 @@ import DashboardSection from '../../components/dashboard/DashboardSection';
 import DashboardSkeleton from '../../components/dashboard/DashboardSkeleton';
 import DashboardContentSkeleton from '../../components/dashboard/DashboardContentSkeleton';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { DEFAULT_LEADERBOARD_SORT } from '../../utils/leaderboardSort';
 
 const DailyActivityChart = lazy(() => import('../../components/DailyActivityChart'));
 const TopicChart = lazy(() => import('../../components/TopicChart'));
@@ -60,8 +61,7 @@ export default function ClassroomDashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // Default Today (same as before) — backend must resolve today counts reliably in prod
-  const [sortBy, setSortBy] = useState('todaySolved');
+  const [sortBy, setSortBy] = useState(DEFAULT_LEADERBOARD_SORT);
 
   useEffect(() => {
     let cancelled = false;
