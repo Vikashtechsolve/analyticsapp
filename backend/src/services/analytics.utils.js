@@ -37,11 +37,43 @@ const sumCalendarRange = (calendar, days = 7) => {
   return dates.reduce((sum, d) => sum + (cal[d] || 0), 0);
 };
 
+/** Build a compact calendar with only the last N local dates. */
+const buildCalendarWindow = (calendar, days = 30) => {
+  const cal = mapToObj(calendar);
+  const out = {};
+  for (const date of getDateRange(days)) {
+    if (cal[date]) out[date] = cal[date];
+  }
+  return out;
+};
+
+const snapWeeklyActivity = (snap) => {
+  if (!snap || snap.syncError) return 0;
+  if (typeof snap.weeklyActivity === 'number') return snap.weeklyActivity;
+  return sumCalendarRange(snap.calendar30 || snap.calendar, 7);
+};
+
+const snapScore = (snap) => {
+  if (!snap || snap.syncError) return 0;
+  if (typeof snap.score === 'number' && snap.score > 0) return snap.score;
+  const weekly = snapWeeklyActivity(snap);
+  return Math.round(((snap.totalSolved || 0) * 1 + (snap.streak || 0) * 0.5 + weekly * 0.3) * 10) / 10;
+};
+
 /**
- * Unique problems solved on a given local date — never LeetCode submission counts.
- * Uses dailySolveLog + recentSolves, keyed by problem slug.
+ * Unique problem slugs solved on a local date from log + recent solves.
+ * Prefer snapshot.problemsSolvedToday when precomputed for the same date (fast path).
  */
 const countUniqueSolvesOnDate = (student, date, timeZone = appTimeZone()) => {
+  const snap = student.snapshot;
+  if (
+    snap &&
+    snap.problemsSolvedTodayDate === date &&
+    typeof snap.problemsSolvedToday === 'number'
+  ) {
+    return snap.problemsSolvedToday;
+  }
+
   const slugs = new Set();
 
   for (const entry of student.dailySolveLog || []) {
@@ -52,7 +84,7 @@ const countUniqueSolvesOnDate = (student, date, timeZone = appTimeZone()) => {
     if (entryDate === date) slugs.add(String(entry.slug).toLowerCase());
   }
 
-  for (const solve of student.snapshot?.recentSolves || []) {
+  for (const solve of snap?.recentSolves || []) {
     if (!solve?.slug || !solve.timestamp) continue;
     const solvedDate = toLocalDateString(new Date(Number(solve.timestamp) * 1000), timeZone);
     if (solvedDate === date) slugs.add(String(solve.slug).toLowerCase());
@@ -61,11 +93,23 @@ const countUniqueSolvesOnDate = (student, date, timeZone = appTimeZone()) => {
   return slugs.size;
 };
 
+/** Compute unique solves for today from a solve log + recent list (used at sync time). */
+const computeUniqueSolvesOnDate = (dailySolveLog, recentSolves, date, timeZone = appTimeZone()) =>
+  countUniqueSolvesOnDate(
+    { dailySolveLog, snapshot: { recentSolves } },
+    date,
+    timeZone
+  );
+
 module.exports = {
   mapToObj,
   getDateRange,
   sumCalendarRange,
+  buildCalendarWindow,
+  snapWeeklyActivity,
+  snapScore,
   countUniqueSolvesOnDate,
+  computeUniqueSolvesOnDate,
   toLocalDateString,
   todayLocal,
   appTimeZone,

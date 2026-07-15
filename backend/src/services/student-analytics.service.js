@@ -1,5 +1,5 @@
 const { ProblemCache, Student, StudentSnapshot } = require('../models');
-const { sumCalendarRange, mapToObj, countUniqueSolvesOnDate, toLocalDateString, todayLocal } = require('./analytics.utils');
+const { sumCalendarRange, mapToObj, countUniqueSolvesOnDate, toLocalDateString, todayLocal, snapWeeklyActivity } = require('./analytics.utils');
 
 const DIFF_WEIGHT = { Easy: 1, Medium: 2, Hard: 3 };
 const REVISION_DAYS = [7, 15, 30];
@@ -303,7 +303,7 @@ const loadClassroomSnapshots = async (classroomId) => {
   const snapshots = snapshotIds.length
     ? await StudentSnapshot.find({ _id: { $in: snapshotIds } })
         .select(
-          'totalSolved easy medium hard streak calendar acceptanceRate tagStats syncError totalSubmissions recentSolves'
+          'totalSolved easy medium hard streak calendar acceptanceRate tagStats syncError totalSubmissions recentSolves problemsSolvedToday problemsSolvedTodayDate'
         )
         .lean()
     : [];
@@ -485,12 +485,11 @@ const getStudentComparison = async (studentId, classroomId) => {
 const getTeacherInsights = async (studentsWithSnaps) => {
   const valid = studentsWithSnaps.filter((s) => s.snapshot && !s.snapshot.syncError);
 
-  const enriched = await Promise.all(
-    valid.map(async (s) => {
-      const analytics = await buildStudentAnalytics(s, s.snapshot);
-      return { ...s, analytics };
-    })
-  );
+  // Fast path: use tagStats already on the snapshot (no per-student heavy progress rebuild)
+  const enriched = valid.map((s) => ({
+    ...s,
+    analytics: quickAnalyticsFromSnapshot(s.snapshot),
+  }));
 
   const leaderboard = [...enriched]
     .sort((a, b) => b.analytics.avgMastery - a.analytics.avgMastery)
@@ -503,7 +502,7 @@ const getTeacherInsights = async (studentsWithSnaps) => {
       totalSolved: s.snapshot.totalSolved,
       avgMastery: s.analytics.avgMastery,
       streak: s.snapshot.streak,
-      weeklyActivity: sumCalendarRange(s.snapshot.calendar, 7),
+      weeklyActivity: snapWeeklyActivity(s.snapshot),
     }));
 
   const avgMasteryClass =
@@ -531,7 +530,7 @@ const getTeacherInsights = async (studentsWithSnaps) => {
 
   const atRisk = enriched
     .filter((s) => {
-      const inactive = sumCalendarRange(s.snapshot.calendar, 7) === 0;
+      const inactive = snapWeeklyActivity(s.snapshot) === 0;
       const lowMastery = s.analytics.avgMastery < 35;
       const lowStreak = (s.snapshot.streak || 0) < 2;
       return (inactive && lowMastery) || (inactive && lowStreak) || (lowMastery && lowStreak);
@@ -541,7 +540,7 @@ const getTeacherInsights = async (studentsWithSnaps) => {
       displayName: s.displayName,
       ...studentAdminFields(s),
       reason:
-        sumCalendarRange(s.snapshot.calendar, 7) === 0
+        snapWeeklyActivity(s.snapshot) === 0
           ? 'Inactive + low progress'
           : 'Low mastery and streak',
       avgMastery: s.analytics.avgMastery,
@@ -551,14 +550,14 @@ const getTeacherInsights = async (studentsWithSnaps) => {
   const consistent = enriched
     .filter(
       (s) =>
-        (s.snapshot.streak || 0) >= 5 && sumCalendarRange(s.snapshot.calendar, 7) >= 5
+        (s.snapshot.streak || 0) >= 5 && snapWeeklyActivity(s.snapshot) >= 5
     )
     .map((s) => ({
       studentId: s._id,
       displayName: s.displayName,
       ...studentAdminFields(s),
       streak: s.snapshot.streak,
-      weeklyActivity: sumCalendarRange(s.snapshot.calendar, 7),
+      weeklyActivity: snapWeeklyActivity(s.snapshot),
     }));
 
   const topicAgg = {};

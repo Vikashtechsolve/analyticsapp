@@ -45,7 +45,14 @@ const studentSnapshotSchema = new mongoose.Schema(
     contestRating: { type: Number },
     contestAttended: { type: Number, default: 0 },
     calendar: { type: Map, of: Number, default: {} },
+    // Last ~30 days only — used for classroom activity charts (keeps list queries small)
+    calendar30: { type: Map, of: Number, default: {} },
     dailySolved: { type: Number, default: 0 },
+    weeklyActivity: { type: Number, default: 0 },
+    score: { type: Number, default: 0 },
+    // Unique problems solved on problemsSolvedTodayDate (app timezone)
+    problemsSolvedToday: { type: Number, default: 0 },
+    problemsSolvedTodayDate: { type: String, default: '' },
     recentSolves: [recentSolveSchema],
     topicBreakdown: [topicBreakdownSchema],
     tagStats: [tagStatSchema],

@@ -1,5 +1,10 @@
-const { mapToObj, sumCalendarRange } = require('./analytics.utils');
-const { getStudentsWithSnapshots, buildStudentRankings } = require('./analytics.service');
+const { mapToObj, sumCalendarRange, snapWeeklyActivity } = require('./analytics.utils');
+const {
+  getStudentsWithSnapshots,
+  buildStudentRankings,
+  SNAPSHOT_TEACHER_FIELDS,
+  STUDENT_TEACHER_FIELDS,
+} = require('./analytics.service');
 const { buildStudentAnalytics } = require('./student-analytics.service');
 
 const PERIOD_DAYS = { week: 7, month: 30 };
@@ -10,8 +15,8 @@ const periodToDays = (period, customDays) => {
 };
 
 const daysSinceLastActivity = (snapshot) => {
-  if (!snapshot?.calendar) return null;
-  const cal = mapToObj(snapshot.calendar);
+  const cal = mapToObj(snapshot?.calendar30 || snapshot?.calendar);
+  if (!cal || !Object.keys(cal).length) return null;
   let lastDate = null;
   for (const [date, count] of Object.entries(cal)) {
     if (count > 0 && (!lastDate || date > lastDate)) lastDate = date;
@@ -44,8 +49,10 @@ const buildStudentMetrics = async (student, snapshot) => {
     ? await buildStudentAnalytics(student, snapshot)
     : { avgMastery: 0, topicMastery: [] };
 
-  const weeklyActivity = snapshot ? sumCalendarRange(snapshot.calendar, 7) : 0;
-  const monthlyActivity = snapshot ? sumCalendarRange(snapshot.calendar, 30) : 0;
+  const weeklyActivity = snapshot ? snapWeeklyActivity(snapshot) : 0;
+  const monthlyActivity = snapshot
+    ? sumCalendarRange(snapshot.calendar30 || snapshot.calendar, 30)
+    : 0;
 
   return {
     totalSolved: snapshot?.totalSolved ?? 0,
@@ -55,15 +62,15 @@ const buildStudentMetrics = async (student, snapshot) => {
     monthlyActivity,
     daysSinceActive: snapshot ? daysSinceLastActivity(snapshot) : null,
     lastActiveDate: (() => {
-      if (!snapshot?.calendar) return null;
-      const cal = mapToObj(snapshot.calendar);
+      const cal = mapToObj(snapshot?.calendar30 || snapshot?.calendar);
       const dates = Object.keys(cal).filter((d) => cal[d] > 0).sort();
       return dates[dates.length - 1] || null;
     })(),
     hasSyncError: Boolean(snapshot?.syncError),
     noSnapshot: !snapshot,
     solvesInPeriod: (days) => countSolvesInPeriod(student, days),
-    submissionsInDays: (days) => (snapshot ? sumCalendarRange(snapshot.calendar, days) : 0),
+    submissionsInDays: (days) =>
+      snapshot ? sumCalendarRange(snapshot.calendar30 || snapshot.calendar, days) : 0,
   };
 };
 
@@ -182,7 +189,10 @@ const filterStudentsForTeacher = async (classroomId, options = {}) => {
     search = '',
   } = options;
 
-  const allStudents = await getStudentsWithSnapshots(classroomId, null);
+  const allStudents = await getStudentsWithSnapshots(classroomId, null, {
+    snapshotSelect: SNAPSHOT_TEACHER_FIELDS,
+    studentSelect: STUDENT_TEACHER_FIELDS,
+  });
   const rankings = buildStudentRankings(allStudents);
 
   let pool = divisionId
@@ -213,7 +223,7 @@ const filterStudentsForTeacher = async (classroomId, options = {}) => {
     weeklyActivity:
       validForAvg.length > 0
         ? Math.round(
-            validForAvg.reduce((s, e) => s + sumCalendarRange(e.snapshot.calendar, 7), 0) /
+            validForAvg.reduce((s, e) => s + snapWeeklyActivity(e.snapshot), 0) /
               validForAvg.length
           )
         : 0,

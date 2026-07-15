@@ -11,6 +11,7 @@ const {
   upsertErrorSnapshot,
   pruneStudentSnapshots,
 } = require('./snapshot-retention.service');
+const { todayLocal, computeUniqueSolvesOnDate, buildCalendarWindow, sumCalendarRange } = require('./analytics.utils');
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,6 +81,23 @@ const syncStudent = async (studentId) => {
       return { ...t, mastery: m?.mastery || 0 };
     });
 
+    const today = todayLocal();
+    const problemsSolvedToday = computeUniqueSolvesOnDate(
+      dailySolveLog,
+      recentSolves,
+      today
+    );
+    const weeklyActivity = sumCalendarRange(data.calendar, 7);
+    const score =
+      Math.round(
+        ((data.totalSolved || 0) * 1 + (data.streak || 0) * 0.5 + weeklyActivity * 0.3) * 10
+      ) / 10;
+    const calendar30 = buildCalendarWindow(data.calendar, 30);
+    const slimTopics = (topicBreakdown || []).slice(0, 25);
+    const slimRecent = (recentSolves || []).slice(0, 40);
+    // Cap per-student solve log to keep Student docs light
+    const cappedSolveLog = (dailySolveLog || []).slice(0, 400);
+
     // One full snapshot per UTC day (updates in place) — stops unbounded growth
     const snapshot = await upsertSuccessfulSnapshot(student._id, {
       totalSolved: data.totalSolved,
@@ -95,20 +113,29 @@ const syncStudent = async (studentId) => {
       contestRating: data.contestRating,
       contestAttended: data.contestAttended,
       calendar: data.calendar,
+      calendar30,
       dailySolved,
-      recentSolves,
-      topicBreakdown,
+      weeklyActivity,
+      score,
+      problemsSolvedToday,
+      problemsSolvedTodayDate: today,
+      recentSolves: slimRecent,
+      topicBreakdown: slimTopics,
       tagStats,
     });
 
     student.solvedSlugs = mergedSlugs;
     student.problemProgress = problemProgress;
-    student.dailySolveLog = dailySolveLog;
+    student.dailySolveLog = cappedSolveLog;
     student.latestSnapshotId = snapshot._id;
     await student.save();
 
-    // Drop old historical snapshots beyond retention
-    await pruneStudentSnapshots(student._id, snapshot._id);
+    // Prune in background so sync response / next requests aren't blocked
+    setImmediate(() => {
+      pruneStudentSnapshots(student._id, snapshot._id).catch((err) =>
+        console.error('[prune] student snapshots failed:', err.message)
+      );
+    });
 
     return snapshot;
   } catch (err) {
@@ -128,7 +155,12 @@ const syncStudent = async (studentId) => {
       await student.save();
     }
 
-    await pruneStudentSnapshots(student._id, student.latestSnapshotId);
+    setImmediate(() => {
+      pruneStudentSnapshots(student._id, student.latestSnapshotId).catch((e) =>
+        console.error('[prune] student snapshots failed:', e.message)
+      );
+    });
+
     return snapshot;
   }
 };

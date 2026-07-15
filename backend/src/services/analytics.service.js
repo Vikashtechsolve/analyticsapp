@@ -5,6 +5,8 @@ const {
   sumCalendarRange,
   countUniqueSolvesOnDate,
   todayLocal,
+  snapWeeklyActivity,
+  snapScore,
 } = require('./analytics.utils');
 const {
   buildStudentAnalytics,
@@ -16,7 +18,7 @@ const aggregateCalendar = (snapshots, days = 30) => {
   const result = dates.map((date) => ({ date, submissions: 0 }));
   const byDate = Object.fromEntries(result.map((r) => [r.date, r]));
   for (const snap of snapshots) {
-    const cal = mapToObj(snap.calendar);
+    const cal = mapToObj(snap.calendar30 || snap.calendar);
     for (const date of dates) {
       if (cal[date]) byDate[date].submissions += cal[date];
     }
@@ -24,11 +26,7 @@ const aggregateCalendar = (snapshots, days = 30) => {
   return result;
 };
 
-const computeScore = (snap) => {
-  if (!snap || snap.syncError) return 0;
-  const weekly = sumCalendarRange(snap.calendar, 7);
-  return (snap.totalSolved || 0) * 1 + (snap.streak || 0) * 0.5 + weekly * 0.3;
-};
+const computeScore = (snap) => snapScore(snap);
 
 const aggregateTopics = (snapshots) => {
   const tagCounts = {};
@@ -47,7 +45,6 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
   studentsWithSnaps
     .filter((s) => s.snapshot && !s.snapshot.syncError)
     .map((s) => {
-      // Count unique problems solved today — not calendar submissions
       const todaySolved = countUniqueSolvesOnDate(s, today);
       return {
         studentId: s._id,
@@ -57,7 +54,7 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
         todaySolved,
         totalSolved: s.snapshot.totalSolved || 0,
         streak: s.snapshot.streak || 0,
-        weeklyActivity: sumCalendarRange(s.snapshot.calendar, 7),
+        weeklyActivity: snapWeeklyActivity(s.snapshot),
       };
     })
     .filter((s) => s.todaySolved > 0)
@@ -68,11 +65,18 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
+/** Lean fields for public classroom / leaderboard pages (no full-year calendar). */
 const SNAPSHOT_LIST_FIELDS =
-  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown acceptanceRate recentSolves';
+  'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30 recentSolves';
+
+/** Richer fields for teacher dashboards (still avoids unused junk when possible). */
+const SNAPSHOT_TEACHER_FIELDS =
+  `${SNAPSHOT_LIST_FIELDS} tagStats acceptanceRate totalSubmissions calendar`;
 
 const STUDENT_LIST_FIELDS =
-  'displayName leetcodeUsername divisionId latestSnapshotId status enrollmentNumber institute email mobile academicDepartment graduationYear dailySolveLog';
+  'displayName leetcodeUsername divisionId latestSnapshotId status enrollmentNumber institute email mobile academicDepartment graduationYear';
+
+const STUDENT_TEACHER_FIELDS = `${STUDENT_LIST_FIELDS} dailySolveLog problemProgress`;
 
 const attachSnapshots = async (students, select = SNAPSHOT_LIST_FIELDS) => {
   const snapshotIds = students.map((s) => s.latestSnapshotId).filter(Boolean);
@@ -86,14 +90,18 @@ const attachSnapshots = async (students, select = SNAPSHOT_LIST_FIELDS) => {
   }));
 };
 
-const getStudentsWithSnapshots = async (classroomId, divisionId = null) => {
+const getStudentsWithSnapshots = async (classroomId, divisionId = null, options = {}) => {
+  const {
+    snapshotSelect = SNAPSHOT_LIST_FIELDS,
+    studentSelect = STUDENT_LIST_FIELDS,
+  } = options;
   const filter = { classroomId, status: 'active' };
   if (divisionId) filter.divisionId = divisionId;
   const students = await Student.find(filter)
-    .select(STUDENT_LIST_FIELDS)
+    .select(studentSelect)
     .populate('divisionId', 'name slug')
     .lean();
-  return attachSnapshots(students);
+  return attachSnapshots(students, snapshotSelect);
 };
 
 const RANK_METRICS = ['score', 'totalSolved', 'streak', 'weeklyActivity'];
@@ -108,10 +116,11 @@ const buildLeaderboard = (studentsWithSnaps, sortBy = 'score') => {
       division: s.divisionId,
       totalSolved: s.snapshot.totalSolved,
       streak: s.snapshot.streak,
-      weeklyActivity: sumCalendarRange(s.snapshot.calendar, 7),
+      weeklyActivity: snapWeeklyActivity(s.snapshot),
       contestRating:
         s.snapshot.contestRating != null ? Math.round(s.snapshot.contestRating) : null,
       score: computeScore(s.snapshot),
+      todaySolved: countUniqueSolvesOnDate(s, todayLocal()),
     }));
 
   const sorters = {
@@ -120,6 +129,7 @@ const buildLeaderboard = (studentsWithSnaps, sortBy = 'score') => {
     streak: (a, b) => b.streak - a.streak,
     weeklyActivity: (a, b) => b.weeklyActivity - a.weeklyActivity,
     contestRating: (a, b) => (b.contestRating || 0) - (a.contestRating || 0),
+    todaySolved: (a, b) => (b.todaySolved || 0) - (a.todaySolved || 0),
   };
   ranked.sort(sorters[sortBy] || sorters.score);
   return ranked.map((r, i) => ({ ...r, rank: i + 1 }));
@@ -236,7 +246,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
   const inactiveStudents = students
     .filter((s) => {
       if (!s.snapshot || s.snapshot.syncError) return false;
-      return sumCalendarRange(s.snapshot.calendar, 7) === 0;
+      return snapWeeklyActivity(s.snapshot) === 0;
     })
     .map((s) => ({
       studentId: s._id,
@@ -288,7 +298,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
             medium: s.snapshot.medium,
             hard: s.snapshot.hard,
             streak: s.snapshot.streak,
-            weeklyActivity: sumCalendarRange(s.snapshot.calendar, 7),
+            weeklyActivity: snapWeeklyActivity(s.snapshot),
             contestRating: s.snapshot.contestRating,
             syncError: s.snapshot.syncError,
             syncedAt: s.snapshot.syncedAt,
@@ -342,7 +352,10 @@ const getDivisionComparison = async (classroomId, allStudents = null) => {
 };
 
 const getClassroomTeacherDashboard = async (classroomId, divisionId = null) => {
-  const students = await getStudentsWithSnapshots(classroomId, divisionId);
+  const students = await getStudentsWithSnapshots(classroomId, divisionId, {
+    snapshotSelect: SNAPSHOT_TEACHER_FIELDS,
+    studentSelect: STUDENT_TEACHER_FIELDS,
+  });
   const teacherInsights = await getTeacherInsights(students);
   return {
     classroomId,
@@ -355,7 +368,7 @@ const STUDENT_PROFILE_FIELDS =
   'displayName leetcodeUsername divisionId classroomId dailySolveLog problemProgress institute email mobile enrollmentNumber academicDepartment graduationYear status latestSnapshotId';
 
 const SNAPSHOT_PROFILE_FIELDS =
-  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown tagStats acceptanceRate totalSubmissions recentSolves';
+  'totalSolved easy medium hard streak calendar contestRating syncError syncedAt topicBreakdown tagStats acceptanceRate totalSubmissions recentSolves problemsSolvedToday problemsSolvedTodayDate';
 
 const getStudentDetail = async (studentId) => {
   const student = await Student.findById(studentId)
@@ -424,5 +437,8 @@ module.exports = {
   buildStudentRankings,
   getStudentRank,
   sumCalendarRange,
-  mapToObj,
+  SNAPSHOT_LIST_FIELDS,
+  SNAPSHOT_TEACHER_FIELDS,
+  STUDENT_LIST_FIELDS,
+  STUDENT_TEACHER_FIELDS,
 };
