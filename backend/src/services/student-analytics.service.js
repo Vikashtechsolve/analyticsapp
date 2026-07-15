@@ -1,11 +1,11 @@
 const { ProblemCache, Student, StudentSnapshot } = require('../models');
 const {
   mapToObj,
-  countUniqueSolvesOnDate,
   toLocalDateString,
   todayLocal,
   snapWeeklyActivity,
   snapScore,
+  todaySolvedOf,
 } = require('./analytics.utils');
 
 const DIFF_WEIGHT = { Easy: 1, Medium: 2, Hard: 3 };
@@ -403,11 +403,19 @@ const getStudentComparison = async (studentId, classroomId) => {
   const mine = classData.find((d) => String(d.student._id) === String(studentId));
   if (!mine?.snapshot) return null;
 
-  // tagStats-only mastery — avoids rebuilding problemProgress for every classmate
-  const myAnalytics = quickAnalyticsFromSnapshot(mine.snapshot);
+  // Memoize mastery once per student (topic benchmark loop was O(topics × N) recompute)
+  const analyticsById = new Map();
+  const analyticsFor = (entry) => {
+    const id = String(entry.student._id);
+    if (!analyticsById.has(id)) {
+      analyticsById.set(id, quickAnalyticsFromSnapshot(entry.snapshot));
+    }
+    return analyticsById.get(id);
+  };
 
-  const masteryFor = (entry) => quickAnalyticsFromSnapshot(entry.snapshot).avgMastery;
-  const topicMasteryFor = (entry) => quickAnalyticsFromSnapshot(entry.snapshot).topicMastery;
+  const myAnalytics = analyticsFor(mine);
+  const masteryFor = (entry) => analyticsFor(entry).avgMastery;
+  const topicMasteryFor = (entry) => analyticsFor(entry).topicMastery;
 
   const classAvgSolved =
     valid.length > 0
@@ -582,7 +590,7 @@ const getTeacherInsights = async (studentsWithSnaps) => {
 
   const today = todayLocal();
   const dailyReport = enriched.map((s) => {
-    const problemsSolvedToday = countUniqueSolvesOnDate(s, today);
+    const problemsSolvedToday = todaySolvedOf(s.snapshot, today);
     return {
       studentId: s._id,
       displayName: s.displayName,

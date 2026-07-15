@@ -180,6 +180,10 @@ function TodayRunnerCard({ row, rank, classroomSlug, index = 0 }) {
           <p className="text-lg font-black text-emerald-600 tabular-nums">{today}</p>
         </div>
         <p className="text-[10px] font-medium text-slate-500">solved today</p>
+        <div className="flex gap-2 mt-1 justify-end text-[10px] text-slate-600 font-medium">
+          <span>{row.totalSolved} solved</span>
+          <span>{row.streak}d</span>
+        </div>
       </div>
     </Link>
   );
@@ -278,10 +282,12 @@ function StatChip({ label, value, accent }) {
   );
 }
 
-function PodiumSpot({ row, rank, classroomSlug, sortBy }) {
+function PodiumSpot({ row, rank, classroomSlug, sortBy, maxScore }) {
   const theme = RANK_THEME[rank];
   const isFirst = rank === 1;
   const score = statValue(row, sortBy);
+  const numericScore = typeof score === 'number' ? score : 0;
+  const pct = maxScore > 0 ? Math.round((numericScore / maxScore) * 100) : 0;
 
   return (
     <div
@@ -329,20 +335,37 @@ function PodiumSpot({ row, rank, classroomSlug, sortBy }) {
           </div>
         </div>
 
-        {/* Primary metric */}
-        <div className="mt-3 rounded-xl bg-white/70 border border-slate-100 px-3 py-3 flex flex-col items-center justify-center text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-            {statLabel(sortBy)}
-          </p>
-          <p className={`mt-1.5 text-4xl sm:text-5xl font-black tabular-nums leading-none ${theme.score}`}>
-            {score}
-          </p>
+        {/* Primary metric + vs leader */}
+        <div className="mt-3 flex items-baseline justify-between gap-2 rounded-xl bg-white/70 border border-slate-100 px-3 py-2">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {statLabel(sortBy)}
+            </p>
+            <p className={`text-2xl sm:text-3xl font-black tabular-nums leading-none mt-0.5 ${theme.score}`}>
+              {score}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">vs leader</p>
+            <p className="text-lg font-bold text-slate-700 tabular-nums">{pct}%</p>
+          </div>
         </div>
 
         {/* Secondary stats */}
         <div className="mt-2 flex gap-1.5">
-          <StatChip label="Total" value={row.totalSolved} />
+          <StatChip label="Solved" value={row.totalSolved} />
           <StatChip label="Streak" value={`${row.streak}d`} accent={row.streak >= 7 ? 'text-emerald-600' : ''} />
+          <StatChip label="Weekly" value={row.weeklyActivity} />
+        </div>
+
+        {/* Progress vs leader */}
+        <div className="mt-2.5">
+          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className={`h-full rounded-full bg-gradient-to-r ${theme.ring} transition-all duration-1000 ease-out`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
         </div>
       </Link>
 
@@ -351,10 +374,12 @@ function PodiumSpot({ row, rank, classroomSlug, sortBy }) {
   );
 }
 
-function TodayPodiumSpot({ row, rank, classroomSlug }) {
+function TodayPodiumSpot({ row, rank, classroomSlug, leaderToday, runnerUpToday }) {
   const theme = RANK_THEME[rank];
   const isFirst = rank === 1;
   const today = row.todaySolved ?? 0;
+  const pct = leaderToday > 0 ? Math.round((today / leaderToday) * 100) : 100;
+  const leadOverNext = runnerUpToday != null ? today - runnerUpToday : 0;
 
   return (
     <div
@@ -405,22 +430,48 @@ function TodayPodiumSpot({ row, rank, classroomSlug }) {
           </div>
         </div>
 
-        <div className="mt-3 rounded-xl bg-white/70 border border-slate-100 px-3 py-3 flex flex-col items-center justify-center text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-            Solved today
-          </p>
-          <p className="mt-1.5 text-4xl sm:text-5xl font-black tabular-nums leading-none text-emerald-600">
-            {today}
-          </p>
+        {/* Hero metric — keep centered number; NO "−N to #1" badge */}
+        <div className="mt-3 rounded-xl bg-white/70 border border-slate-100 px-3 py-2.5">
+          <div className="flex items-end justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Solved today
+              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <FlameIcon className="w-4 h-4 text-orange-500 shrink-0" />
+                <span className="text-3xl sm:text-4xl font-black tabular-nums leading-none text-emerald-600">
+                  {today}
+                </span>
+              </div>
+            </div>
+            {isFirst && (
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-100 border border-amber-200 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                Leader
+              </span>
+            )}
+          </div>
+
+          <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-1000 ease-out"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          {isFirst && leadOverNext > 0 && (
+            <p className="mt-1.5 text-[10px] font-semibold text-emerald-600">
+              {leadOverNext} ahead of #2
+            </p>
+          )}
         </div>
 
         <div className="mt-2 flex gap-1.5">
-          <StatChip label="Total" value={row.totalSolved} />
+          <StatChip label="Solved" value={row.totalSolved} />
           <StatChip
             label="Streak"
             value={`${row.streak}d`}
             accent={row.streak >= 7 ? 'text-emerald-600' : ''}
           />
+          <StatChip label="Weekly" value={row.weeklyActivity} />
         </div>
       </Link>
 
@@ -429,8 +480,10 @@ function TodayPodiumSpot({ row, rank, classroomSlug }) {
   );
 }
 
-function ChallengerCard({ row, rank, classroomSlug, sortBy, index = 0 }) {
+function ChallengerCard({ row, rank, classroomSlug, sortBy, maxScore, index = 0 }) {
   const score = statValue(row, sortBy);
+  const numericScore = typeof score === 'number' ? score : 0;
+  const pct = maxScore > 0 ? Math.round((numericScore / maxScore) * 100) : 0;
 
   return (
     <Link
@@ -453,11 +506,21 @@ function ChallengerCard({ row, rank, classroomSlug, sortBy, index = 0 }) {
           {row.displayName}
         </p>
         <p className="text-xs text-slate-500 truncate">@{row.leetcodeUsername}</p>
+        <div className="mt-1.5 h-1 rounded-full bg-slate-100 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-brand-500 to-amber-500 transition-all duration-700"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
       </div>
 
       <div className="shrink-0 text-right">
         <p className="text-lg font-black text-brand-600 tabular-nums">{score}</p>
         <p className="text-[10px] font-medium text-slate-500">{statLabel(sortBy)}</p>
+        <div className="flex gap-2 mt-1 text-[10px] text-slate-600 font-medium">
+          <span>{row.totalSolved} solved</span>
+          <span>{row.streak}d streak</span>
+        </div>
       </div>
     </Link>
   );
@@ -513,12 +576,15 @@ export default function TopPerformersPodium({
   const podiumOrder = [topN[1], topN[0], topN[2]].filter(Boolean);
   const runnersMid = maxItems > 5 ? topN.slice(3, 5) : topN.slice(3);
   const runnersRest = maxItems > 5 ? topN.slice(5) : [];
+  const leaderToday = topN[0] ? (topN[0].todaySolved ?? 0) : 0;
+  const leaderScore = topN[0] ? statValue(topN[0], sortBy) : 0;
+  const maxScore = typeof leaderScore === 'number' ? leaderScore : 1;
 
   const isToday = sortBy === 'todaySolved' || accent === 'emerald';
   const scopeLabel =
     rankingScope === 'division' ? activeDivisionName || 'This division' : 'All students';
   const subtitle = isToday
-    ? `Unique problems solved today · ${scopeLabel}`
+    ? `${leaderToday} by today's leader · ${scopeLabel}`
     : `Top ${Math.min(maxItems, items.length) || maxItems} · ${SORT_LABELS[sortBy] || 'Score'} · ${scopeLabel}`;
 
   const headerGradient = isToday
@@ -611,6 +677,8 @@ export default function TopPerformersPodium({
                 row={row}
                 rank={row.rank}
                 classroomSlug={classroomSlug}
+                leaderToday={leaderToday}
+                runnerUpToday={topN[1] ? topN[1].todaySolved ?? 0 : null}
               />
             ))}
           </PodiumStage>
@@ -623,6 +691,7 @@ export default function TopPerformersPodium({
                 rank={row.rank}
                 classroomSlug={classroomSlug}
                 sortBy={sortBy}
+                maxScore={maxScore}
               />
             ))}
           </PodiumStage>
@@ -650,6 +719,7 @@ export default function TopPerformersPodium({
                     rank={row.rank}
                     classroomSlug={classroomSlug}
                     sortBy={sortBy}
+                    maxScore={maxScore}
                     index={i}
                   />
                 )
@@ -671,6 +741,7 @@ export default function TopPerformersPodium({
                   rank={row.rank}
                   classroomSlug={classroomSlug}
                   sortBy={sortBy}
+                  maxScore={maxScore}
                   index={i}
                 />
               ))}

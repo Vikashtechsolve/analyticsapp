@@ -3,10 +3,10 @@ const {
   mapToObj,
   getDateRange,
   sumCalendarRange,
-  countUniqueSolvesOnDate,
   todayLocal,
   snapWeeklyActivity,
   snapScore,
+  todaySolvedOf,
 } = require('./analytics.utils');
 const {
   buildStudentAnalytics,
@@ -26,8 +26,6 @@ const aggregateCalendar = (snapshots, days = 30) => {
   return result;
 };
 
-const computeScore = (snap) => snapScore(snap);
-
 const aggregateTopics = (snapshots) => {
   const tagCounts = {};
   for (const snap of snapshots) {
@@ -45,7 +43,7 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
   studentsWithSnaps
     .filter((s) => s.snapshot && !s.snapshot.syncError)
     .map((s) => {
-      const todaySolved = countUniqueSolvesOnDate(s, today);
+      const todaySolved = todaySolvedOf(s.snapshot, today);
       return {
         studentId: s._id,
         displayName: s.displayName,
@@ -55,6 +53,9 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
         totalSolved: s.snapshot.totalSolved || 0,
         streak: s.snapshot.streak || 0,
         weeklyActivity: snapWeeklyActivity(s.snapshot),
+        contestRating:
+          s.snapshot.contestRating != null ? Math.round(s.snapshot.contestRating) : null,
+        score: snapScore(s.snapshot),
       };
     })
     .filter((s) => s.todaySolved > 0)
@@ -65,9 +66,9 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
-/** Lean fields for public classroom / leaderboard pages (no full-year calendar). */
+/** Lean fields for public classroom / leaderboard pages (no full-year calendar / recentSolves). */
 const SNAPSHOT_LIST_FIELDS =
-  'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30 recentSolves';
+  'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30';
 
 /** Minimal fields for ranking classmates (profile page). */
 const SNAPSHOT_RANK_FIELDS =
@@ -117,7 +118,43 @@ const getStudentsWithSnapshots = async (classroomId, divisionId = null, options 
 
 const RANK_METRICS = ['score', 'totalSolved', 'streak', 'weeklyActivity'];
 
-const buildLeaderboard = (studentsWithSnaps, sortBy = 'score') => {
+const toRankEntry = (rank, total) => ({
+  rank,
+  total,
+  percentile: total > 1 ? Math.round((1 - (rank - 1) / total) * 100) : 100,
+});
+
+const metricValue = (student, metric) => {
+  const snap = student.snapshot;
+  if (!snap || snap.syncError) return 0;
+  switch (metric) {
+    case 'totalSolved':
+      return snap.totalSolved || 0;
+    case 'streak':
+      return snap.streak || 0;
+    case 'weeklyActivity':
+      return snapWeeklyActivity(snap);
+    case 'contestRating':
+      return snap.contestRating || 0;
+    case 'todaySolved':
+      return todaySolvedOf(snap);
+    case 'score':
+    default:
+      return snapScore(snap);
+  }
+};
+
+/** Slim rank map — no todaySolved / display-row work for every metric. */
+const buildRankMap = (students, sortBy) => {
+  const list = students
+    .filter((s) => s.snapshot && !s.snapshot.syncError)
+    .map((s) => ({ id: String(s._id), value: metricValue(s, sortBy) }))
+    .sort((a, b) => b.value - a.value);
+  const total = list.length;
+  return new Map(list.map((r, i) => [r.id, toRankEntry(i + 1, total)]));
+};
+
+const buildLeaderboard = (studentsWithSnaps, sortBy = 'score', today = todayLocal()) => {
   const ranked = studentsWithSnaps
     .filter((s) => s.snapshot && !s.snapshot.syncError)
     .map((s) => ({
@@ -130,8 +167,8 @@ const buildLeaderboard = (studentsWithSnaps, sortBy = 'score') => {
       weeklyActivity: snapWeeklyActivity(s.snapshot),
       contestRating:
         s.snapshot.contestRating != null ? Math.round(s.snapshot.contestRating) : null,
-      score: computeScore(s.snapshot),
-      todaySolved: countUniqueSolvesOnDate(s, todayLocal()),
+      score: snapScore(s.snapshot),
+      todaySolved: todaySolvedOf(s.snapshot, today),
     }));
 
   const sorters = {
@@ -144,19 +181,6 @@ const buildLeaderboard = (studentsWithSnaps, sortBy = 'score') => {
   };
   ranked.sort(sorters[sortBy] || sorters.score);
   return ranked.map((r, i) => ({ ...r, rank: i + 1 }));
-};
-
-const toRankEntry = (rank, total) => ({
-  rank,
-  total,
-  percentile: total > 1 ? Math.round((1 - (rank - 1) / total) * 100) : 100,
-});
-
-const buildRankMap = (students, sortBy) => {
-  const list = buildLeaderboard(students, sortBy);
-  return new Map(
-    list.map((r) => [String(r.studentId), toRankEntry(r.rank, list.length)])
-  );
 };
 
 const buildStudentRankings = (allStudents) => {
@@ -241,7 +265,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
   const today = todayLocal();
   const todayTopPerformers = buildTodayTopPerformers(students, today);
   const activeToday = students.filter(
-    (s) => s.snapshot && !s.snapshot.syncError && countUniqueSolvesOnDate(s, today) > 0
+    (s) => s.snapshot && !s.snapshot.syncError && todaySolvedOf(s.snapshot, today) > 0
   ).length;
 
   const avgSolved =
@@ -339,7 +363,7 @@ const buildDivisionComparison = (allStudents, divisions) => {
         ? Math.round(validSnaps.reduce((sum, s) => sum + (s.streak || 0), 0) / validSnaps.length)
         : 0;
     const activeToday = divStudents.filter(
-      (s) => s.snapshot && !s.snapshot.syncError && countUniqueSolvesOnDate(s, today) > 0
+      (s) => s.snapshot && !s.snapshot.syncError && todaySolvedOf(s.snapshot, today) > 0
     ).length;
 
     return {
