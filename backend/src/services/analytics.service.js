@@ -66,9 +66,9 @@ const buildTodayTopPerformers = (studentsWithSnaps, today) =>
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
-/** Lean fields for public classroom / leaderboard pages (no full-year calendar). */
+/** Lean fields for public classroom / leaderboard — keep BSON small to avoid 504s. */
 const SNAPSHOT_LIST_FIELDS =
-  'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30 recentSolves';
+  'totalSolved easy medium hard streak contestRating syncError syncedAt topicBreakdown weeklyActivity score problemsSolvedToday problemsSolvedTodayDate calendar30';
 
 /** Minimal fields for ranking classmates (profile page). */
 const SNAPSHOT_RANK_FIELDS =
@@ -264,9 +264,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
 
   const today = todayLocal();
   const todayTopPerformers = buildTodayTopPerformers(students, today);
-  const activeToday = students.filter(
-    (s) => s.snapshot && !s.snapshot.syncError && todaySolvedOf(s.snapshot, today) > 0
-  ).length;
+  const activeToday = todayTopPerformers.length;
 
   const avgSolved =
     validSnaps.length > 0
@@ -289,7 +287,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
       leetcodeUsername: s.leetcodeUsername,
     }));
 
-  const leaderboard = buildLeaderboard(students).map((row) => {
+  const leaderboard = buildLeaderboard(students, 'score', today).map((row) => {
     const ranking = buildRankingPayload(
       rankings,
       row.studentId,

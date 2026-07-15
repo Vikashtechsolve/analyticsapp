@@ -37,7 +37,6 @@ const sumCalendarRange = (calendar, days = 7) => {
   return dates.reduce((sum, d) => sum + (cal[d] || 0), 0);
 };
 
-/** Build a compact calendar with only the last N local dates. */
 const buildCalendarWindow = (calendar, days = 30) => {
   const cal = mapToObj(calendar);
   const out = {};
@@ -60,49 +59,19 @@ const snapScore = (snap) => {
   return Math.round(((snap.totalSolved || 0) * 1 + (snap.streak || 0) * 0.5 + weekly * 0.3) * 10) / 10;
 };
 
-/**
- * Unique solves on a date from recent AC list only (no dailySolveLog).
- * Used as a hot-path fallback when precomputed today fields are stale.
- */
-const uniqueFromRecentSolves = (recentSolves, date, timeZone = appTimeZone()) => {
-  if (!recentSolves?.length) return 0;
-  const slugs = new Set();
-  for (const solve of recentSolves) {
-    if (!solve?.slug || !solve.timestamp) continue;
-    const solvedDate = toLocalDateString(new Date(Number(solve.timestamp) * 1000), timeZone);
-    if (solvedDate === date) slugs.add(String(solve.slug).toLowerCase());
-  }
-  return slugs.size;
-};
-
-/**
- * Today count for classroom lists / leaderboards.
- * 1) Precomputed fields (fast, accurate after sync)
- * 2) recentSolves unique count (works even if last sync was yesterday)
- * 3) calendar30 submissions that day (last resort so deploy never shows empty wrongly)
- */
+/** Today count: use synced value, else calendar for that day. */
 const todaySolvedOf = (snap, date = todayLocal()) => {
   if (!snap || snap.syncError) return 0;
-
   if (
     snap.problemsSolvedTodayDate === date &&
     typeof snap.problemsSolvedToday === 'number'
   ) {
     return snap.problemsSolvedToday;
   }
-
-  const fromRecent = uniqueFromRecentSolves(snap.recentSolves, date);
-  if (fromRecent > 0) return fromRecent;
-
   const cal = mapToObj(snap.calendar30 || snap.calendar);
   return Number(cal[date] || 0);
 };
 
-/**
- * Unique problem slugs solved on a local date from log + recent solves.
- * Prefer snapshot.problemsSolvedToday when precomputed for the same date (fast path).
- * Use for profile/sync; prefer todaySolvedOf() on classroom list hot paths.
- */
 const countUniqueSolvesOnDate = (student, date, timeZone = appTimeZone()) => {
   const snap = student.snapshot || student;
   if (
@@ -113,13 +82,7 @@ const countUniqueSolvesOnDate = (student, date, timeZone = appTimeZone()) => {
     return snap.problemsSolvedToday;
   }
 
-  // List payloads often omit logs — avoid wasted work
-  const hasLog = (student.dailySolveLog || []).length > 0;
-  const hasRecent = (snap?.recentSolves || []).length > 0;
-  if (!hasLog && !hasRecent) return 0;
-
   const slugs = new Set();
-
   for (const entry of student.dailySolveLog || []) {
     if (!entry?.slug) continue;
     const entryDate = entry.solvedAt
@@ -127,17 +90,14 @@ const countUniqueSolvesOnDate = (student, date, timeZone = appTimeZone()) => {
       : entry.date;
     if (entryDate === date) slugs.add(String(entry.slug).toLowerCase());
   }
-
   for (const solve of snap?.recentSolves || []) {
     if (!solve?.slug || !solve.timestamp) continue;
     const solvedDate = toLocalDateString(new Date(Number(solve.timestamp) * 1000), timeZone);
     if (solvedDate === date) slugs.add(String(solve.slug).toLowerCase());
   }
-
   return slugs.size;
 };
 
-/** Compute unique solves for today from a solve log + recent list (used at sync time). */
 const computeUniqueSolvesOnDate = (dailySolveLog, recentSolves, date, timeZone = appTimeZone()) =>
   countUniqueSolvesOnDate(
     { dailySolveLog, snapshot: { recentSolves } },
