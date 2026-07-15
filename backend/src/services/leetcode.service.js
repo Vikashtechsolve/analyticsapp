@@ -160,7 +160,7 @@ const fetchUserData = async (username) => {
   const profileData = await leetcodeUser(username);
   const recentRes = await leetcodeGraphql({
     query: RECENT_AC_QUERY,
-    variables: { username, limit: 20 },
+    variables: { username, limit: 50 },
   });
   const contestData = await leetcodeContest(username);
   const calendarRes = await leetcodeGraphql({

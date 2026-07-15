@@ -1,5 +1,5 @@
 const { ProblemCache, Student, StudentSnapshot } = require('../models');
-const { sumCalendarRange, mapToObj, countUniqueSolvesOnDate } = require('./analytics.utils');
+const { sumCalendarRange, mapToObj, countUniqueSolvesOnDate, toLocalDateString, todayLocal } = require('./analytics.utils');
 
 const DIFF_WEIGHT = { Easy: 1, Medium: 2, Hard: 3 };
 const REVISION_DAYS = [7, 15, 30];
@@ -577,7 +577,7 @@ const getTeacherInsights = async (studentsWithSnaps) => {
     }))
     .sort((a, b) => a.classMastery - b.classMastery);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   const dailyReport = enriched.map((s) => {
     const problemsSolvedToday = countUniqueSolvesOnDate(s, today);
     return {
@@ -614,21 +614,22 @@ const getTeacherInsights = async (studentsWithSnaps) => {
 
 const mergeDailySolveLog = async (existingLog, recentSolves, cacheBySlug) => {
   const seen = new Set(
-    (existingLog || []).map((e) => `${e.date}:${e.slug}`)
+    (existingLog || []).map((e) => `${e.date}:${String(e.slug || '').toLowerCase()}`)
   );
   const log = [...(existingLog || [])];
 
   for (const solve of recentSolves) {
     if (!solve.slug || !solve.timestamp) continue;
-    const solvedAt = new Date(solve.timestamp * 1000);
-    const date = solvedAt.toISOString().slice(0, 10);
-    const key = `${date}:${solve.slug}`;
+    const solvedAt = new Date(Number(solve.timestamp) * 1000);
+    const date = toLocalDateString(solvedAt);
+    const slug = String(solve.slug).toLowerCase();
+    const key = `${date}:${slug}`;
     if (seen.has(key)) continue;
 
-    const cached = cacheBySlug[solve.slug];
+    const cached = cacheBySlug[solve.slug] || cacheBySlug[slug];
     log.push({
       date,
-      slug: solve.slug,
+      slug,
       title: solve.title,
       difficulty: cached?.difficulty || solve.difficulty || 'Medium',
       tags: cached?.tags || [],

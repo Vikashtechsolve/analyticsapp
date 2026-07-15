@@ -4,6 +4,7 @@ const {
   getDateRange,
   sumCalendarRange,
   countUniqueSolvesOnDate,
+  todayLocal,
 } = require('./analytics.utils');
 const {
   buildStudentAnalytics,
@@ -216,7 +217,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
   const snapshots = students.map((s) => s.snapshot).filter(Boolean);
   const validSnaps = snapshots.filter((s) => !s?.syncError);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   const todayTopPerformers = buildTodayTopPerformers(students, today);
   const activeToday = students.filter(
     (s) => s.snapshot && !s.snapshot.syncError && countUniqueSolvesOnDate(s, today) > 0
@@ -300,7 +301,7 @@ const getClassroomAnalytics = async (classroomId, divisionId = null, options = {
 };
 
 const buildDivisionComparison = (allStudents, divisions) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   return divisions.map((div) => {
     const divStudents = allStudents.filter(
       (s) => String(s.divisionId?._id || s.divisionId) === String(div._id)

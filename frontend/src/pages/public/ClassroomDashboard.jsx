@@ -172,7 +172,7 @@ export default function ClassroomDashboard() {
                 activeDivisionName={analytics.summary.activeDivision?.name}
                 accent={sortBy === 'todaySolved' ? 'emerald' : 'amber'}
                 emptyTitle={
-                  sortBy === 'todaySolved' ? 'No submissions yet today' : 'Hall of Fame is empty'
+                  sortBy === 'todaySolved' ? 'No problems solved yet today' : 'Hall of Fame is empty'
                 }
                 emptyMessage={
                   sortBy === 'todaySolved'
